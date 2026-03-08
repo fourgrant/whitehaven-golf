@@ -409,6 +409,30 @@ main {
 .lb-table tr:last-child td { border-bottom: none; }
 .lb-table tr:hover td { background: #faf8f2; cursor: pointer; }
 
+/* ===== PLAYER ADMIN ===== */
+.player-admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px;
+  border-bottom: 1px solid #f0ece4;
+  gap: 12px;
+}
+.player-admin-row:last-child { border-bottom: none; }
+.player-admin-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+.player-admin-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.player-inactive .player-admin-name { color: var(--text-muted); }
+.player-inactive .player-admin-meta { opacity: 0.6; }
+
 /* ===== STATS PAGE ===== */
 .stats-search {
   display: flex;
