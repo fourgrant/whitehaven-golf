@@ -58,6 +58,7 @@
     <!-- Public tabs -->
     <button data-page="stats"   onclick="showPage('stats')"   class="active">Stats</button>
     <button data-page="history" onclick="showPage('history')"              >History</button>
+    <button class="commish-tab" data-page="howto" onclick="showPage('howto')">Guide</button>
   </nav>
   <div class="header-actions">
     <button class="btn-auth" id="auth-btn" onclick="showCommishLogin()">Commish Login</button>
@@ -94,6 +95,9 @@
         <div class="form-group">
           <label>Buy-in per player ($)</label>
           <input type="number" id="round-buyin" value="12" min="1">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;">
+            $2 → CTH pool (holes 2 &amp; 5) · $10 → 75% team win / 25% skins
+          </div>
         </div>
       </div>
       <div class="payout-grid" id="round-summary" style="margin-top:4px;">
@@ -259,6 +263,215 @@
   </div>
 
   <!-- ===================================================
+       PAGE: HOW TO RUN A ROUND (commish guide)
+  ==================================================== -->
+  <div id="page-howto" class="page">
+
+    <div class="page-header">
+      <h1>Commish Guide</h1>
+      <p>Step-by-step instructions for running a weekly round from start to finish.</p>
+    </div>
+
+    <!-- Overview card -->
+    <div class="card">
+      <h2>Overview</h2>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
+        Whitehaven runs a 9-hole shambles format. Each week follows four steps: set up the round, assign teams, enter scores, then finalize. The active round auto-saves in your browser at every step — safe to close and reopen before finalizing.
+      </p>
+      <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span class="tag">1 Round</span>
+        <span style="color:var(--text-muted);font-size:18px;">→</span>
+        <span class="tag">2 Teams</span>
+        <span style="color:var(--text-muted);font-size:18px;">→</span>
+        <span class="tag">3 Scores</span>
+        <span style="color:var(--text-muted);font-size:18px;">→</span>
+        <span class="tag gold">4 Finalize</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Round -->
+    <div class="card">
+      <h2>⛳ Step 1 — Round Tab</h2>
+      <div class="section-label" style="margin-top:0;">What to do</div>
+      <ol style="padding-left:20px;font-size:14px;line-height:2;">
+        <li>Set the <strong>Date</strong> and <strong>Course</strong>.</li>
+        <li>Confirm the <strong>Buy-in</strong> — default is $12 all-in per player.</li>
+        <li>Click <strong>Save Round &amp; Go to Teams</strong>.</li>
+      </ol>
+      <div class="section-label">Buy-in breakdown ($12 default)</div>
+      <table class="lb-table" style="margin-bottom:4px;">
+        <thead>
+          <tr>
+            <th>Bucket</th>
+            <th>Amount</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CTH Pool</td>
+            <td><span class="tag gold">$2</span></td>
+            <td style="font-size:13px;color:var(--text-muted);">$1 per par-3 hole (holes 2 &amp; 5)</td>
+          </tr>
+          <tr>
+            <td>Main Pool</td>
+            <td><span class="tag">$10</span></td>
+            <td style="font-size:13px;color:var(--text-muted);">75% team win, 25% skins — or 100% team win if no skins hit</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Step 2: Teams -->
+    <div class="card">
+      <h2>👥 Step 2 — Teams Tab</h2>
+      <div class="section-label" style="margin-top:0;">Check in players</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        Check the box next to every player who showed up. Only active players appear in this list — manage the roster on the <strong>Players</strong> tab.
+      </p>
+      <div class="section-label">Assign teams</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        You have two options:
+      </p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
+        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to let the app split players into even teams based on scoring averages. Best for most weeks.</li>
+        <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want specific pairings.</li>
+      </ul>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
+        A live team preview shows the groups as you assign. When everything looks right, click <strong>Save Teams &amp; Enter Scores</strong>.
+      </p>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Guest players</strong> — use the <em>+ Add Guest</em> button to add a walk-up player who isn't in the roster. Guests are included in team math for the day but don't affect the permanent stats leaderboard.
+      </div>
+    </div>
+
+    <!-- Step 3: Scores -->
+    <div class="card">
+      <h2>🏌️ Step 3 — Scores Tab</h2>
+
+      <div class="section-label" style="margin-top:0;">Individual scores</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        Enter each player's total stroke count for the 9 holes in the field next to their name. These are used to update <strong>player scoring averages</strong> — they do not determine the winning team.
+      </p>
+
+      <div class="section-label">Team shamble score</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        At the top of each team card there is a <strong>gold-bordered box</strong> — this is where you enter the team's combined shamble score. The team with the <em>lowest</em> score wins the team pot. Enter this manually (it's the actual shamble result from the course, not calculated from individual scores).
+      </p>
+
+      <div class="section-label">Skins</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        In the Skins section, use the dropdown for each hole (1–9) to select the hole winner, or leave it as <em>No winner</em>. A skin is only awarded when one player clearly wins the hole outright — ties carry over per your group's rules.
+      </p>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+        If no skins are claimed at all, the full main pool goes to the winning team instead.
+      </p>
+
+      <div class="section-label">Closest to the Pin (Holes 2 &amp; 5)</div>
+      <p style="font-size:14px;line-height:1.7;">
+        Holes 2 and 5 are the par-3s. In the CTH section, pick the player who landed closest to the pin on each hole. Each CTH winner claims $1 × the number of players from the CTH pool.
+      </p>
+
+      <div style="margin-top:16px;padding:12px 14px;background:#fdf3d8;border-radius:8px;border:1px solid #e8c97a;font-size:13px;line-height:1.6;">
+        <strong>The payout table updates live</strong> as you enter scores, skins, and CTH winners. No need to save — just keep entering data and the numbers will reflect correctly.
+      </div>
+    </div>
+
+    <!-- Step 4: Payouts & Finalize -->
+    <div class="card">
+      <h2>💰 Step 4 — Review Payouts &amp; Finalize</h2>
+
+      <div class="section-label" style="margin-top:0;">Track cash</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        The payout table shows every player's winnings broken out by team win, skins, and CTH. Use the <strong>Paid In</strong> and <strong>Paid Out</strong> checkboxes to track who has settled up as you collect and distribute cash.
+      </p>
+
+      <div class="section-label">Share with the group</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        Click <strong>Copy Payout Summary</strong> to copy a plain-text summary to your clipboard — ready to paste into a group chat.
+      </p>
+
+      <div class="section-label">Finalize the round</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        When all scores and payouts are confirmed, click <strong>✓ Finalize Round</strong>. This will:
+      </p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
+        <li>Save the round permanently to the database.</li>
+        <li>Update each player's scoring average (last 10 rounds).</li>
+        <li>Archive the round to the <strong>History</strong> tab for everyone to view.</li>
+        <li>Clear the active round from your browser.</li>
+      </ul>
+      <div style="padding:12px 14px;background:#faeaea;border-radius:8px;border:1px solid #e0b0b0;font-size:13px;color:var(--red);line-height:1.6;">
+        <strong>This cannot be undone.</strong> Finalized rounds can be deleted from History, but deletion is permanent and will reverse the stat updates for all players in that round.
+      </div>
+    </div>
+
+    <!-- Players tab -->
+    <div class="card">
+      <h2>🗂 Players Tab — Roster Management</h2>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        The Players tab is separate from the weekly round flow — use it any time to manage the roster.
+      </p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;">
+        <li><strong>Add player</strong> — type their name and click Add. They'll appear at check-in immediately.</li>
+        <li><strong>Deactivate</strong> — players sitting out the season can be deactivated so they don't clutter the check-in list. Their history and averages are preserved.</li>
+        <li><strong>Reactivate</strong> — bring them back at any time with one click.</li>
+      </ul>
+    </div>
+
+    <!-- Scoring averages -->
+    <div class="card">
+      <h2>📊 How Scoring Averages Work</h2>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;">
+        <li>Each player's average is calculated from their <strong>last 10 finalized rounds</strong>.</li>
+        <li>New players start with a <strong>seeded historical average</strong> until they have 10 rounds in the system — set this when adding them if you know their typical score.</li>
+        <li>Auto-Balance uses these averages to create balanced teams, so keeping scores accurate each week matters.</li>
+        <li>Individual scores (entered per player in the Scores tab) feed the averages — the team shamble score does not.</li>
+      </ul>
+    </div>
+
+    <!-- Quick reference -->
+    <div class="card">
+      <h2>Quick Reference</h2>
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th>Answer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-size:13px;">What if I close the browser mid-round?</td>
+            <td style="font-size:13px;color:var(--text-muted);">The active round is auto-saved locally. Reopen the app and continue from where you left off.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">What if nobody wins a skin?</td>
+            <td style="font-size:13px;color:var(--text-muted);">Leave all skins as <em>No winner</em>. The full main pool rolls to the winning team automatically.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">Can I change scores after finalizing?</td>
+            <td style="font-size:13px;color:var(--text-muted);">No — delete the round from History and re-enter if a correction is needed. All stat updates reverse on delete.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">What's the difference between team score and individual scores?</td>
+            <td style="font-size:13px;color:var(--text-muted);">Team score (gold box) is the shamble result — it determines the winner. Individual scores feed each player's personal average.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">Which holes are par 3s?</td>
+            <td style="font-size:13px;color:var(--text-muted);">Holes 2 and 5. CTH is only contested on these two holes.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">How much does each CTH winner get?</td>
+            <td style="font-size:13px;color:var(--text-muted);">$1 × number of players checked in, drawn from the $2-per-player CTH pool.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ===================================================
        PAGE: PLAYER STATS (public)
   ==================================================== -->
   <div id="page-stats" class="page active">
@@ -266,12 +479,24 @@
       <h1>Player Stats</h1>
       <p>Scoring averages sorted best to worst. Click any player for their full history.</p>
     </div>
+
+    <!-- Season superlatives -->
+    <div class="card" id="superlatives-card">
+      <h2 id="superlatives-title">2026 Season Awards</h2>
+      <div class="superlatives-grid" id="superlatives-grid">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Leaderboard</h2>
       <div class="stats-search">
         <input type="text" id="stats-search" placeholder="Search player…" oninput="filterStats(this.value)">
       </div>
       <div id="stats-list"><div class="loading">Loading players…</div></div>
+      <p style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:16px;letter-spacing:0.5px;">
+        Averages based on last 10 rounds played. Historical averages used as baseline until 10 rounds are tracked in the system.
+      </p>
     </div>
   </div>
 

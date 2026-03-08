@@ -433,6 +433,53 @@ main {
 .player-inactive .player-admin-name { color: var(--text-muted); }
 .player-inactive .player-admin-meta { opacity: 0.6; }
 
+/* ===== SEASON SUPERLATIVES ===== */
+.superlatives-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.superlative-tile {
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.superlative-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.superlative-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.superlative-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.superlative-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gold);
+}
+
 /* ===== STATS PAGE ===== */
 .stats-search {
   display: flex;
@@ -1037,6 +1084,10 @@ body.is-commish .commish-only-flex { display: flex; }
   .payout-stat .value { font-size: 22px; }
   .lb-table th { font-size: 10px; padding: 7px 8px; }
   .lb-table td { font-size: 13px; padding: 9px 8px; }
+
+  /* --- Superlatives: 2×2 on phone --- */
+  .superlatives-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .superlative-name { font-size: 14px; }
 
   /* --- Stats leaderboard --- */
   .stat-name  { width: 110px; }

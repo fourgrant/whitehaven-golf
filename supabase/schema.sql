@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS players (
   avg_score     numeric DEFAULT 40.0,
   rounds_played integer DEFAULT 0,
   active        boolean NOT NULL DEFAULT true,
+  base_avg      numeric,               -- historical avg before app tracking; used as blend seed
+  base_rounds   integer NOT NULL DEFAULT 0, -- historical round count before app tracking
   created_at    timestamptz DEFAULT now()
 );
 
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS round_players (
   score       integer,
   holes_won   integer NOT NULL DEFAULT 0,
   cth_winner  boolean NOT NULL DEFAULT false,
+  cth_count   integer NOT NULL DEFAULT 0,  -- # of CTH holes won this round (0, 1, or 2)
   paid_in     boolean NOT NULL DEFAULT false,
   paid_out    boolean NOT NULL DEFAULT false,
   UNIQUE(round_id, player_id)
