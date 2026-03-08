@@ -31,8 +31,9 @@ const state = {
   checkedIn: new Set(),   // player IDs checked in
   teamAssignments: {},    // playerId -> team letter
   scores: {},             // rpId -> score int
+  teamScores: JSON.parse(localStorage.getItem('whg_team_scores') || '{}'), // team -> manual score
   holeWinners: {},        // hole# (1-9) -> rpId
-  cthWinners: new Set(),  // rpId set
+  cthWinners: { hole2: null, hole5: null }, // rpId per CTH hole
   paidIn: new Set(),
   paidOut: new Set(),
 };
@@ -236,16 +237,15 @@ async function loadRoundPlayers() {
   state.checkedIn = new Set(state.roundPlayers.map(rp => rp.player_id));
   state.teamAssignments = {};
   state.scores = {};
-  state.cthWinners = new Set();
+  state.cthWinners = { hole2: null, hole5: null }; // can't reconstruct per-hole from DB
   state.paidIn = new Set();
   state.paidOut = new Set();
 
   state.roundPlayers.forEach(rp => {
     state.teamAssignments[rp.player_id] = rp.team || '';
-    if (rp.score)       state.scores[rp.id] = rp.score;
-    if (rp.cth_winner)  state.cthWinners.add(rp.id);
-    if (rp.paid_in)     state.paidIn.add(rp.id);
-    if (rp.paid_out)    state.paidOut.add(rp.id);
+    if (rp.score)   state.scores[rp.id] = rp.score;
+    if (rp.paid_in) state.paidIn.add(rp.id);
+    if (rp.paid_out) state.paidOut.add(rp.id);
   });
 }
 
@@ -296,7 +296,7 @@ async function saveRound() {
     buyin_per_player: parseFloat(document.getElementById('round-buyin').value) || 12,
     cth_per_player:   parseFloat(document.getElementById('round-cth').value) || 2,
     team_size:        parseInt(document.getElementById('round-teamsize').value) || 4,
-    scores_to_keep:   parseInt(document.getElementById('round-keep').value) || 3,
+    scores_to_keep:   3,
     status:           'setup',
   };
 
@@ -328,17 +328,19 @@ async function saveRound() {
 
 function clearActiveRound() {
   if (!confirm('Clear the active round? This won\'t delete any completed data.')) return;
-  state.currentRound   = null;
-  state.currentRoundId = null;
-  state.roundPlayers   = [];
-  state.checkedIn      = new Set();
+  state.currentRound    = null;
+  state.currentRoundId  = null;
+  state.roundPlayers    = [];
+  state.checkedIn       = new Set();
   state.teamAssignments = {};
-  state.scores         = {};
-  state.holeWinners    = {};
-  state.cthWinners     = new Set();
-  state.paidIn         = new Set();
-  state.paidOut        = new Set();
+  state.scores          = {};
+  state.teamScores      = {};
+  state.holeWinners     = {};
+  state.cthWinners      = { hole2: null, hole5: null };
+  state.paidIn          = new Set();
+  state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
+  localStorage.removeItem('whg_team_scores');
   renderRoundPage();
   toast('Active round cleared.');
 }
@@ -610,13 +612,19 @@ function renderTeamScoreCards() {
   }
 
   container.innerHTML = Object.entries(teams).sort().map(([t, rps]) => {
-    const teamScore = calcTeamScore(rps);
+    const manualScore = state.teamScores[t];
     return `
       <div class="team-card" id="tcard-${t}">
         <div class="team-card-header">
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
-          <span class="team-score-badge" id="tbadge-${t}">${teamScore !== null ? teamScore : '—'}</span>
+          ${state.isCommish
+            ? `<input type="number" class="team-score-input" placeholder="Score"
+                 min="50" max="200" value="${manualScore || ''}"
+                 oninput="updateTeamScore('${t}', this.value)" id="tbadge-${t}">`
+            : `<span class="team-score-badge" id="tbadge-${t}">${manualScore ?? '—'}</span>`
+          }
         </div>
+        <div class="section-label" style="font-size:10px;margin:8px 0 4px;">Individual Scores</div>
         ${rps.map(rp => `
           <div class="team-member">
             <div>
@@ -628,7 +636,7 @@ function renderTeamScoreCards() {
             ${state.isCommish
               ? `<input type="number" class="member-score-input" placeholder="—" min="24" max="72"
                    value="${state.scores[rp.id] || ''}"
-                   oninput="updateScore('${rp.id}', '${t}', this.value)">`
+                   oninput="updateScore('${rp.id}', this.value)">`
               : `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;">
                    ${state.scores[rp.id] || '—'}
                  </span>`
@@ -638,6 +646,16 @@ function renderTeamScoreCards() {
       </div>
     `;
   }).join('');
+}
+
+function updateTeamScore(team, val) {
+  if (val && parseInt(val) > 0) {
+    state.teamScores[team] = parseInt(val);
+  } else {
+    delete state.teamScores[team];
+  }
+  localStorage.setItem('whg_team_scores', JSON.stringify(state.teamScores));
+  calcAndRenderPayouts();
 }
 
 function getTeamGroupsByRpId() {
@@ -660,21 +678,13 @@ function calcTeamScore(rps) {
   return scores.slice(0, keep).reduce((a, b) => a + b, 0);
 }
 
-function updateScore(rpId, team, val) {
+function updateScore(rpId, val) {
   if (val && parseInt(val) > 0) {
     state.scores[rpId] = parseInt(val);
   } else {
     delete state.scores[rpId];
   }
-
-  // Update badge live
-  const teams  = getTeamGroupsByRpId();
-  const rps    = teams[team] || [];
-  const ts     = calcTeamScore(rps);
-  const badge  = document.getElementById('tbadge-' + team);
-  if (badge) badge.textContent = ts !== null ? ts : '—';
-
-  calcAndRenderPayouts();
+  // Individual scores are for player avg tracking; team score is entered manually
 }
 
 // ===== SKINS / CTH SECTION =====
@@ -703,15 +713,31 @@ function renderSkinsSection() {
     `;
   }).join('');
 
-  // CTH checkboxes
-  document.getElementById('cth-players').innerHTML = allRps.map(rp => `
-    <label class="cth-label">
-      <input type="checkbox" ${state.cthWinners.has(rp.id) ? 'checked' : ''}
-        onchange="toggleCTH('${rp.id}', this.checked)">
-      ${rp.players.name}
-      <span class="cth-team-tag">Team ${rp.team}</span>
-    </label>
-  `).join('');
+  // CTH — two dropdowns, one per par-3 hole
+  const cthOptions = `
+    <option value="">— No winner</option>
+    ${allRps.map(rp => `<option value="${rp.id}">${rp.players.name} (${rp.team})</option>`).join('')}
+  `;
+  document.getElementById('cth-players').innerHTML = `
+    <div class="skins-row">
+      <span class="hole-label">Hole 2</span>
+      <select class="skins-select" onchange="setCTHWinner(2, this.value)">
+        ${allRps.reduce((opts, rp) => opts + `
+          <option value="${rp.id}" ${state.cthWinners.hole2 === rp.id ? 'selected' : ''}>
+            ${rp.players.name} (${rp.team})
+          </option>`, '<option value="">— No winner</option>')}
+      </select>
+    </div>
+    <div class="skins-row">
+      <span class="hole-label">Hole 5</span>
+      <select class="skins-select" onchange="setCTHWinner(5, this.value)">
+        ${allRps.reduce((opts, rp) => opts + `
+          <option value="${rp.id}" ${state.cthWinners.hole5 === rp.id ? 'selected' : ''}>
+            ${rp.players.name} (${rp.team})
+          </option>`, '<option value="">— No winner</option>')}
+      </select>
+    </div>
+  `;
 }
 
 function setHoleWinner(hole, rpId) {
@@ -720,9 +746,9 @@ function setHoleWinner(hole, rpId) {
   calcAndRenderPayouts();
 }
 
-function toggleCTH(rpId, checked) {
-  if (checked) state.cthWinners.add(rpId);
-  else state.cthWinners.delete(rpId);
+function setCTHWinner(hole, rpId) {
+  if (hole === 2) state.cthWinners.hole2 = rpId || null;
+  if (hole === 5) state.cthWinners.hole5 = rpId || null;
   calcAndRenderPayouts();
 }
 
@@ -741,10 +767,10 @@ function calcPayoutData() {
   const teams = getTeamGroupsByRpId();
   const r     = state.currentRound;
 
+  // Use manually-entered team scores
   const teamScores = {};
-  Object.entries(teams).forEach(([t, rps]) => {
-    const s = calcTeamScore(rps);
-    if (s !== null) teamScores[t] = s;
+  Object.keys(teams).forEach(t => {
+    if (state.teamScores[t]) teamScores[t] = state.teamScores[t];
   });
 
   if (!Object.keys(teamScores).length) return null;
@@ -752,16 +778,16 @@ function calcPayoutData() {
   const minScore     = Math.min(...Object.values(teamScores));
   const winningTeams = Object.entries(teamScores).filter(([, s]) => s === minScore).map(([t]) => t);
 
-  const n          = state.roundPlayers.length;
-  const buyin      = parseFloat(r.buyin_per_player) || 0;
-  const cthBet     = parseFloat(r.cth_per_player) || 0;
-  const totalPot   = n * buyin;
-  const cthPool    = n * cthBet;
+  const n           = state.roundPlayers.length;
+  const buyin       = parseFloat(r.buyin_per_player) || 0;
+  const cthBet      = parseFloat(r.cth_per_player) || 0;
+  const totalPot    = n * buyin;
+  const cthPool     = n * cthBet;
   const teamWinPool = totalPot * 0.75;
-  const skinPool   = totalPot * 0.25;
+  const skinPool    = totalPot * 0.25;
 
-  const winnerRps  = winningTeams.flatMap(t => teams[t] || []);
-  const perWin     = winnerRps.length > 0 ? teamWinPool / winnerRps.length : 0;
+  const winnerRps = winningTeams.flatMap(t => teams[t] || []);
+  const perWin    = winnerRps.length > 0 ? teamWinPool / winnerRps.length : 0;
 
   // Skins
   const skinsPerRp = {};
@@ -771,22 +797,22 @@ function calcPayoutData() {
   const totalSkins = Object.values(state.holeWinners).length;
   const skinValue  = totalSkins > 0 ? skinPool / totalSkins : 0;
 
-  // CTH
-  const perCth = state.cthWinners.size > 0 ? cthPool / state.cthWinners.size : 0;
+  // CTH — split equally between hole 2 and hole 5
+  const cthHalfPool = cthPool / 2;
 
   return {
     teams, teamScores, winningTeams, n, totalPot, cthPool, teamWinPool, skinPool,
-    perWin, skinsPerRp, skinValue, perCth, minScore,
+    perWin, skinsPerRp, skinValue, cthHalfPool, minScore,
   };
 }
 
 function calcAndRenderPayouts() {
-  const teams = getTeamGroupsByRpId();
-  const hasScore = Object.values(teams).some(rps => rps.some(rp => state.scores[rp.id]));
+  const teams         = getTeamGroupsByRpId();
+  const hasTeamScore  = Object.keys(state.teamScores).some(t => state.teamScores[t] > 0);
 
-  const banner    = document.getElementById('winner-banner');
+  const banner     = document.getElementById('winner-banner');
   const payoutCard = document.getElementById('payout-card');
-  if (!hasScore || !Object.keys(teams).length) {
+  if (!hasTeamScore || !Object.keys(teams).length) {
     if (banner)     banner.classList.remove('show');
     if (payoutCard) payoutCard.style.display = 'none';
     return;
@@ -795,16 +821,16 @@ function calcAndRenderPayouts() {
   const d = calcPayoutData();
   if (!d) return;
 
-  // Update team badges
-  Object.entries(d.teamScores).forEach(([t, s]) => {
-    const badge = document.getElementById('tbadge-' + t);
-    if (badge) {
-      badge.textContent = s;
-      badge.className   = 'team-score-badge' + (d.winningTeams.includes(t) ? ' winner' : '');
-    }
+  // Highlight winning team cards; for public view update the static badge
+  Object.entries(d.teamScores).forEach(([t]) => {
     const card = document.getElementById('tcard-' + t);
-    if (card) {
-      card.classList.toggle('winning', d.winningTeams.includes(t));
+    if (card) card.classList.toggle('winning', d.winningTeams.includes(t));
+    if (!state.isCommish) {
+      const badge = document.getElementById('tbadge-' + t);
+      if (badge) {
+        badge.textContent = d.teamScores[t];
+        badge.className   = 'team-score-badge' + (d.winningTeams.includes(t) ? ' winner' : '');
+      }
     }
   });
 
@@ -847,7 +873,8 @@ function calcAndRenderPayouts() {
     const isWin  = d.winningTeams.includes(rp.team);
     const teamW  = isWin ? d.perWin : 0;
     const skinW  = (d.skinsPerRp[rp.id] || 0) * d.skinValue;
-    const cthW   = state.cthWinners.has(rp.id) ? d.perCth : 0;
+    const cthW   = (state.cthWinners.hole2 === rp.id ? d.cthHalfPool : 0)
+                 + (state.cthWinners.hole5 === rp.id ? d.cthHalfPool : 0);
     const total  = teamW + skinW + cthW;
     const tColor = TEAM_COLORS[rp.team] || '#2d5a40';
     const paidCols = state.isCommish ? `
@@ -915,7 +942,7 @@ async function finalizeRound() {
     await db.from('round_players').update({
       score:      state.scores[rp.id] || null,
       holes_won:  skinsCount,
-      cth_winner: state.cthWinners.has(rp.id),
+      cth_winner: state.cthWinners.hole2 === rp.id || state.cthWinners.hole5 === rp.id,
       paid_in:    state.paidIn.has(rp.id),
       paid_out:   state.paidOut.has(rp.id),
     }).eq('id', rp.id);
@@ -926,7 +953,8 @@ async function finalizeRound() {
     const isWin  = d.winningTeams.includes(rp.team);
     const teamW  = isWin ? d.perWin : 0;
     const skinW  = (d.skinsPerRp[rp.id] || 0) * d.skinValue;
-    const cthW   = state.cthWinners.has(rp.id) ? d.perCth : 0;
+    const cthW   = (state.cthWinners.hole2 === rp.id ? d.cthHalfPool : 0)
+                 + (state.cthWinners.hole5 === rp.id ? d.cthHalfPool : 0);
     return {
       round_id:       state.currentRound.id,
       player_id:      rp.player_id,
@@ -973,11 +1001,13 @@ async function finalizeRound() {
   state.checkedIn       = new Set();
   state.teamAssignments = {};
   state.scores          = {};
+  state.teamScores      = {};
   state.holeWinners     = {};
-  state.cthWinners      = new Set();
+  state.cthWinners      = { hole2: null, hole5: null };
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
+  localStorage.removeItem('whg_team_scores');
 
   await loadPlayers();
   toast('Round finalized and results saved! 🏆');
@@ -1010,7 +1040,8 @@ function copyPayoutText() {
     const isWin = d.winningTeams.includes(rp.team);
     const teamW = isWin ? d.perWin : 0;
     const skinW = (d.skinsPerRp[rp.id] || 0) * d.skinValue;
-    const cthW  = state.cthWinners.has(rp.id) ? d.perCth : 0;
+    const cthW  = (state.cthWinners.hole2 === rp.id ? d.cthHalfPool : 0)
+               + (state.cthWinners.hole5 === rp.id ? d.cthHalfPool : 0);
     const total = teamW + skinW + cthW;
     if (total > 0) {
       const parts = [];
