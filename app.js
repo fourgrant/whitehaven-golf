@@ -258,7 +258,6 @@ function renderRoundPage() {
     document.getElementById('round-date').value     = r.date || today;
     document.getElementById('round-course').value   = r.course || 'Whitehaven';
     document.getElementById('round-buyin').value    = r.buyin_per_player ?? 12;
-    document.getElementById('round-teamsize').value = r.team_size || 4;
     document.getElementById('round-badge-text').textContent = `Editing: ${r.date} at ${r.course}`;
     document.getElementById('round-active-badge').style.display = 'block';
     document.getElementById('clear-round-btn').style.display = '';
@@ -266,7 +265,6 @@ function renderRoundPage() {
     document.getElementById('round-date').value     = today;
     document.getElementById('round-course').value   = 'Whitehaven';
     document.getElementById('round-buyin').value    = 12;
-    document.getElementById('round-teamsize').value = 4;
     document.getElementById('round-active-badge').style.display = 'none';
     document.getElementById('clear-round-btn').style.display = 'none';
   }
@@ -291,8 +289,6 @@ async function saveRound() {
     course:           document.getElementById('round-course').value || 'Whitehaven',
     buyin_per_player: parseFloat(document.getElementById('round-buyin').value) || 12,
     cth_per_player:   2,
-    team_size:        parseInt(document.getElementById('round-teamsize').value) || 4,
-    scores_to_keep:   3,
     status:           'setup',
   };
 
@@ -462,8 +458,7 @@ function autoBalance() {
     .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
     .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
 
-  const teamSize = state.currentRound?.team_size || 4;
-  const numTeams = Math.min(Math.ceil(sorted.length / teamSize), TEAMS.length);
+  const numTeams = Math.min(Math.ceil(sorted.length / 4), TEAMS.length);
 
   sorted.forEach((p, i) => {
     const round   = Math.floor(i / numTeams);
@@ -665,15 +660,6 @@ function getTeamGroupsByRpId() {
   return teams;
 }
 
-function calcTeamScore(rps) {
-  const keep   = state.currentRound?.scores_to_keep || 3;
-  const scores = rps
-    .map(rp => state.scores[rp.id])
-    .filter(s => s !== null && s !== undefined && !isNaN(s))
-    .sort((a, b) => a - b);
-  if (!scores.length) return null;
-  return scores.slice(0, keep).reduce((a, b) => a + b, 0);
-}
 
 function updateScore(rpId, val) {
   const parsed = parseInt(val);
@@ -1284,7 +1270,7 @@ async function renderHistory() {
       <div class="history-card-header" onclick="toggleHistoryCard('${r.id}', document.getElementById('hcard-${r.id}'))" style="cursor:pointer;">
         <div>
           <div class="history-date">${r.date}</div>
-          <div class="history-meta">${r.course} · ${r.team_size}-player teams</div>
+          <div class="history-meta">${r.course}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           ${state.isCommish ? `<button class="btn btn-danger btn-sm commish-only" onclick="event.stopPropagation();deleteRound('${r.id}')" style="font-size:11px;padding:3px 8px;">Delete</button>` : ''}
@@ -1327,18 +1313,16 @@ async function loadHistoryRoundData(roundId, container) {
     teams[rp.team].push(rp);
   });
 
-  // Calc team scores
-  const keep = round?.scores_to_keep || 3;
-  const teamScores = {};
-  Object.entries(teams).forEach(([t, tRps]) => {
-    const sc = tRps.map(rp => rp.score).filter(s => s !== null && s !== undefined && !isNaN(s)).sort((a, b) => a - b);
-    if (sc.length) teamScores[t] = sc.slice(0, keep).reduce((a, b) => a + b, 0);
-  });
+  // Determine winning teams from round_results (team_winnings > 0)
+  const winnerPlayerIds = new Set(
+    (results || []).filter(r => r.team_winnings > 0).map(r => r.player_id)
+  );
+  const winTeams = [...new Set(
+    rps.filter(rp => winnerPlayerIds.has(rp.player_id)).map(rp => rp.team)
+  )];
 
-  const minScore    = Object.values(teamScores).length ? Math.min(...Object.values(teamScores)) : null;
-  const winTeams    = Object.entries(teamScores).filter(([, s]) => s === minScore).map(([t]) => t);
-  const totalPot    = rps.length * (parseFloat(round?.buyin_per_player) || 0);
-  const numPlayers  = rps.length;
+  const totalPot   = rps.length * (parseFloat(round?.buyin_per_player) || 0);
+  const numPlayers = rps.length;
 
   let html = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -1350,13 +1334,12 @@ async function loadHistoryRoundData(roundId, container) {
   `;
 
   Object.entries(teams).sort().forEach(([t, tRps]) => {
-    const score = teamScores[t];
     const isWin = winTeams.includes(t);
     html += `
       <div class="team-card ${isWin ? 'winning' : ''}">
         <div class="team-card-header">
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
-          <span class="team-score-badge ${isWin ? 'winner' : ''}">${score ?? '—'}</span>
+          ${isWin ? `<span class="team-score-badge winner">🏆</span>` : ''}
         </div>
         ${tRps.map(rp => `
           <div class="team-member">
