@@ -255,22 +255,18 @@ function renderRoundPage() {
   const r = state.currentRound;
 
   if (r && r.status !== 'complete') {
-    document.getElementById('round-date').value    = r.date || today;
-    document.getElementById('round-course').value  = r.course || 'Whitehaven';
-    document.getElementById('round-buyin').value   = r.buyin_per_player ?? 12;
-    document.getElementById('round-cth').value     = r.cth_per_player ?? 2;
+    document.getElementById('round-date').value     = r.date || today;
+    document.getElementById('round-course').value   = r.course || 'Whitehaven';
+    document.getElementById('round-buyin').value    = r.buyin_per_player ?? 12;
     document.getElementById('round-teamsize').value = r.team_size || 4;
-    document.getElementById('round-keep').value    = r.scores_to_keep || 3;
     document.getElementById('round-badge-text').textContent = `Editing: ${r.date} at ${r.course}`;
     document.getElementById('round-active-badge').style.display = 'block';
     document.getElementById('clear-round-btn').style.display = '';
   } else {
-    document.getElementById('round-date').value    = today;
-    document.getElementById('round-course').value  = 'Whitehaven';
-    document.getElementById('round-buyin').value   = 12;
-    document.getElementById('round-cth').value     = 2;
+    document.getElementById('round-date').value     = today;
+    document.getElementById('round-course').value   = 'Whitehaven';
+    document.getElementById('round-buyin').value    = 12;
     document.getElementById('round-teamsize').value = 4;
-    document.getElementById('round-keep').value    = 3;
     document.getElementById('round-active-badge').style.display = 'none';
     document.getElementById('clear-round-btn').style.display = 'none';
   }
@@ -278,11 +274,11 @@ function renderRoundPage() {
 }
 
 function updateCalc() {
-  const n = state.roundPlayers.length;
+  const n     = state.roundPlayers.length;
   const buyin = parseFloat(document.getElementById('round-buyin')?.value) || 0;
-  const cth   = parseFloat(document.getElementById('round-cth')?.value) || 0;
-  const total   = n * (buyin + cth);
-  const teamWin = n * buyin * 0.75;
+  const total     = n * buyin;
+  const mainPool  = n * (buyin - 2);   // after $2/player CTH
+  const teamWin   = mainPool * 0.75;   // 75% of main pool (assumes skins)
   const $id = id => document.getElementById(id);
   if ($id('calc-players'))  $id('calc-players').textContent  = n;
   if ($id('calc-pot'))      $id('calc-pot').textContent      = '$' + total.toFixed(0);
@@ -294,7 +290,7 @@ async function saveRound() {
     date:             document.getElementById('round-date').value,
     course:           document.getElementById('round-course').value || 'Whitehaven',
     buyin_per_player: parseFloat(document.getElementById('round-buyin').value) || 12,
-    cth_per_player:   parseFloat(document.getElementById('round-cth').value) || 2,
+    cth_per_player:   2,
     team_size:        parseInt(document.getElementById('round-teamsize').value) || 4,
     scores_to_keep:   3,
     status:           'setup',
@@ -619,7 +615,7 @@ function renderTeamScoreCards() {
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
           ${state.isCommish
             ? `<input type="number" class="team-score-input" placeholder="Score"
-                 min="50" max="200" value="${manualScore || ''}"
+                 min="-99" max="200" value="${manualScore === undefined ? '' : manualScore}"
                  oninput="updateTeamScore('${t}', this.value)" id="tbadge-${t}">`
             : `<span class="team-score-badge" id="tbadge-${t}">${manualScore ?? '—'}</span>`
           }
@@ -634,8 +630,8 @@ function renderTeamScoreCards() {
               </div>
             </div>
             ${state.isCommish
-              ? `<input type="number" class="member-score-input" placeholder="—" min="24" max="72"
-                   value="${state.scores[rp.id] || ''}"
+              ? `<input type="number" class="member-score-input" placeholder="—" min="-99" max="99"
+                   value="${state.scores[rp.id] !== undefined ? state.scores[rp.id] : ''}"
                    oninput="updateScore('${rp.id}', this.value)">`
               : `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;">
                    ${state.scores[rp.id] || '—'}
@@ -649,8 +645,9 @@ function renderTeamScoreCards() {
 }
 
 function updateTeamScore(team, val) {
-  if (val && parseInt(val) > 0) {
-    state.teamScores[team] = parseInt(val);
+  const parsed = parseInt(val);
+  if (!isNaN(parsed)) {
+    state.teamScores[team] = parsed;
   } else {
     delete state.teamScores[team];
   }
@@ -672,15 +669,16 @@ function calcTeamScore(rps) {
   const keep   = state.currentRound?.scores_to_keep || 3;
   const scores = rps
     .map(rp => state.scores[rp.id])
-    .filter(s => s && s > 0)
+    .filter(s => s !== null && s !== undefined && !isNaN(s))
     .sort((a, b) => a - b);
   if (!scores.length) return null;
   return scores.slice(0, keep).reduce((a, b) => a + b, 0);
 }
 
 function updateScore(rpId, val) {
-  if (val && parseInt(val) > 0) {
-    state.scores[rpId] = parseInt(val);
+  const parsed = parseInt(val);
+  if (!isNaN(parsed)) {
+    state.scores[rpId] = parsed;
   } else {
     delete state.scores[rpId];
   }
@@ -770,7 +768,8 @@ function calcPayoutData() {
   // Use manually-entered team scores
   const teamScores = {};
   Object.keys(teams).forEach(t => {
-    if (state.teamScores[t]) teamScores[t] = state.teamScores[t];
+    const s = state.teamScores[t];
+    if (typeof s === 'number' && !isNaN(s)) teamScores[t] = s;
   });
 
   if (!Object.keys(teamScores).length) return null;
@@ -778,26 +777,27 @@ function calcPayoutData() {
   const minScore     = Math.min(...Object.values(teamScores));
   const winningTeams = Object.entries(teamScores).filter(([, s]) => s === minScore).map(([t]) => t);
 
-  const n           = state.roundPlayers.length;
-  const buyin       = parseFloat(r.buyin_per_player) || 0;
-  const cthBet      = parseFloat(r.cth_per_player) || 0;
-  const totalPot    = n * buyin;
-  const cthPool     = n * cthBet;
-  const teamWinPool = totalPot * 0.75;
-  const skinPool    = totalPot * 0.25;
-
-  const winnerRps = winningTeams.flatMap(t => teams[t] || []);
-  const perWin    = winnerRps.length > 0 ? teamWinPool / winnerRps.length : 0;
+  const n        = state.roundPlayers.length;
+  const buyin    = parseFloat(r.buyin_per_player) || 12;
+  const totalPot = n * buyin;
+  const cthPool  = n * 2;                // $1/hole × 2 CTH holes
+  const mainPool = n * (buyin - 2);      // remaining $10/player
 
   // Skins
   const skinsPerRp = {};
   Object.values(state.holeWinners).forEach(rpId => {
     skinsPerRp[rpId] = (skinsPerRp[rpId] || 0) + 1;
   });
-  const totalSkins = Object.values(state.holeWinners).length;
-  const skinValue  = totalSkins > 0 ? skinPool / totalSkins : 0;
+  const totalSkins  = Object.values(state.holeWinners).length;
+  const hasSkins    = totalSkins > 0;
+  const skinPool    = hasSkins ? mainPool * 0.25 : 0;
+  const teamWinPool = mainPool - skinPool; // 75% if skins, 100% if not
+  const skinValue   = hasSkins ? skinPool / totalSkins : 0;
 
-  // CTH — split equally between hole 2 and hole 5
+  const winnerRps = winningTeams.flatMap(t => teams[t] || []);
+  const perWin    = winnerRps.length > 0 ? teamWinPool / winnerRps.length : 0;
+
+  // CTH — $1/player per hole, split between hole 2 and hole 5 winners
   const cthHalfPool = cthPool / 2;
 
   return {
@@ -808,7 +808,7 @@ function calcPayoutData() {
 
 function calcAndRenderPayouts() {
   const teams         = getTeamGroupsByRpId();
-  const hasTeamScore  = Object.keys(state.teamScores).some(t => state.teamScores[t] > 0);
+  const hasTeamScore  = Object.values(state.teamScores).some(s => typeof s === 'number' && !isNaN(s));
 
   const banner     = document.getElementById('winner-banner');
   const payoutCard = document.getElementById('payout-card');
@@ -1201,6 +1201,50 @@ document.addEventListener('click', e => {
 });
 
 // ===== HISTORY PAGE =====
+async function deleteRound(roundId) {
+  if (!db) { toast('No DB connected.'); return; }
+  if (!confirm('Delete this round? Player stats will be recalculated. This cannot be undone.')) return;
+
+  // Get affected player IDs before deletion
+  const { data: rps } = await db.from('round_players').select('player_id').eq('round_id', roundId);
+  const playerIds = [...new Set((rps || []).map(r => r.player_id).filter(Boolean))];
+
+  // Delete round (cascades to round_players and round_results)
+  const { error } = await db.from('rounds').delete().eq('id', roundId);
+  if (error) { toast('Error deleting round: ' + error.message); return; }
+
+  // Recalculate stats for each affected player
+  for (const pid of playerIds) {
+    const { data: remaining } = await db
+      .from('round_players')
+      .select('score')
+      .eq('player_id', pid)
+      .not('score', 'is', null);
+
+    const scores = (remaining || []).map(r => r.score).filter(s => s !== null && !isNaN(s));
+    const rounds_played = scores.length;
+    const avg_score = rounds_played > 0
+      ? scores.reduce((a, b) => a + b, 0) / rounds_played
+      : null;
+
+    await db.from('players').update({ rounds_played, avg_score }).eq('id', pid);
+  }
+
+  toast('Round deleted and stats updated.');
+
+  // If deleted round was the active round, clear it
+  if (state.currentRoundId === roundId) {
+    state.currentRound    = null;
+    state.currentRoundId  = null;
+    localStorage.removeItem('whg_round_id');
+    localStorage.removeItem('whg_team_scores');
+  }
+
+  // Reload players and re-render
+  await loadPlayers();
+  await renderHistory();
+}
+
 async function renderHistory() {
   const list = document.getElementById('history-list');
   if (!list) return;
@@ -1236,13 +1280,16 @@ async function renderHistory() {
   state.historyRounds = rounds;
 
   list.innerHTML = rounds.map(r => `
-    <div class="history-card" id="hcard-${r.id}" onclick="toggleHistoryCard('${r.id}', this)">
-      <div class="history-card-header">
+    <div class="history-card" id="hcard-${r.id}">
+      <div class="history-card-header" onclick="toggleHistoryCard('${r.id}', document.getElementById('hcard-${r.id}'))" style="cursor:pointer;">
         <div>
           <div class="history-date">${r.date}</div>
-          <div class="history-meta">${r.course} · ${r.team_size}v format · Best ${r.scores_to_keep < 10 ? r.scores_to_keep : 'All'}</div>
+          <div class="history-meta">${r.course} · ${r.team_size}-player teams</div>
         </div>
-        <span class="history-expand">▼</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${state.isCommish ? `<button class="btn btn-danger btn-sm commish-only" onclick="event.stopPropagation();deleteRound('${r.id}')" style="font-size:11px;padding:3px 8px;">Delete</button>` : ''}
+          <span class="history-expand">▼</span>
+        </div>
       </div>
       <div class="history-body" id="hbody-${r.id}">
         <div class="loading">Loading…</div>
@@ -1284,7 +1331,7 @@ async function loadHistoryRoundData(roundId, container) {
   const keep = round?.scores_to_keep || 3;
   const teamScores = {};
   Object.entries(teams).forEach(([t, tRps]) => {
-    const sc = tRps.map(rp => rp.score).filter(Boolean).sort((a, b) => a - b);
+    const sc = tRps.map(rp => rp.score).filter(s => s !== null && s !== undefined && !isNaN(s)).sort((a, b) => a - b);
     if (sc.length) teamScores[t] = sc.slice(0, keep).reduce((a, b) => a + b, 0);
   });
 
@@ -1314,7 +1361,7 @@ async function loadHistoryRoundData(roundId, container) {
         ${tRps.map(rp => `
           <div class="team-member">
             <span class="member-name">${rp.players?.name || '?'}</span>
-            <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">${rp.score || '—'}</span>
+            <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);">${rp.score !== null && rp.score !== undefined ? rp.score : '—'}</span>
           </div>
         `).join('')}
       </div>
