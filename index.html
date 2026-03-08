@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whitehaven Golf League</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== COMMISH AUTH MODAL ===== -->
+<div class="modal-overlay" id="commish-modal">
+  <div class="modal-box">
+    <div class="modal-title">⛳ Commissioner Access</div>
+    <div class="modal-subtitle">Enter the commish password to manage rounds, teams, and scores.</div>
+    <input type="password" class="modal-input" id="commish-pw" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter') submitCommishPassword()">
+    <div class="modal-error" id="commish-error"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="submitCommishPassword()">Sign In</button>
+    <button class="modal-close" onclick="closeCommishModal()" title="Cancel">✕</button>
+  </div>
+</div>
+
+<!-- ===== PLAYER DETAIL MODAL ===== -->
+<div class="modal-overlay" id="player-modal">
+  <div class="modal-box modal-wide">
+    <button class="modal-close" onclick="closePlayerModal()">✕</button>
+    <div class="modal-title" id="modal-player-name">Player</div>
+    <div class="modal-stats-row">
+      <div class="modal-stat">
+        <div class="v" id="modal-player-avg">—</div>
+        <div class="l">Scoring Avg</div>
+      </div>
+      <div class="modal-stat">
+        <div class="v" id="modal-player-rounds">—</div>
+        <div class="l">Rounds Played</div>
+      </div>
+      <div class="modal-stat">
+        <div class="v" id="modal-player-best">—</div>
+        <div class="l">Best Round</div>
+      </div>
+    </div>
+    <div class="section-label" style="margin-top:0">Round History</div>
+    <div id="modal-history-list" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="logo">⛳ Whitehaven <span>Golf League</span></div>
+  <nav id="main-nav">
+    <!-- Commish-only tabs -->
+    <button class="commish-tab" data-page="round" onclick="showPage('round')">Round</button>
+    <button class="commish-tab" data-page="teams" onclick="showPage('teams')">Teams</button>
+    <button class="commish-tab" data-page="scores" onclick="showPage('scores')">Scores</button>
+    <!-- Public tabs -->
+    <button data-page="stats"   onclick="showPage('stats')"   class="active">Stats</button>
+    <button data-page="history" onclick="showPage('history')"              >History</button>
+  </nav>
+  <div class="header-actions">
+    <button class="btn-auth" id="auth-btn" onclick="showCommishLogin()">Commish Login</button>
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main>
+
+  <!-- ===================================================
+       PAGE: ROUND SETUP (commish only)
+  ==================================================== -->
+  <div id="page-round" class="page">
+    <div class="page-header">
+      <h1>New Round</h1>
+      <p>Configure today's shamble — then head to Teams to assign players.</p>
+    </div>
+    <div id="round-active-badge" style="display:none;">
+      <div class="active-round-badge">
+        <span>✏️</span> <span id="round-badge-text">Editing active round</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Round Details</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="round-date">
+        </div>
+        <div class="form-group">
+          <label>Course</label>
+          <input type="text" id="round-course" value="Whitehaven" placeholder="Course name">
+        </div>
+        <div class="form-group">
+          <label>Buy-in per player ($)</label>
+          <input type="number" id="round-buyin" value="12" min="1">
+        </div>
+        <div class="form-group">
+          <label>CTH bet per player ($)</label>
+          <input type="number" id="round-cth" value="2" min="0">
+        </div>
+        <div class="form-group">
+          <label>Players per team</label>
+          <select id="round-teamsize">
+            <option value="3">3 players</option>
+            <option value="4" selected>4 players</option>
+            <option value="5">5 players</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Scores to count</label>
+          <select id="round-keep">
+            <option value="2">Best 2</option>
+            <option value="3" selected>Best 3</option>
+            <option value="4">Best 4</option>
+            <option value="99">All scores</option>
+          </select>
+        </div>
+      </div>
+      <div class="payout-grid" id="round-summary" style="margin-top:4px;">
+        <div class="payout-stat">
+          <div class="value" id="calc-players">0</div>
+          <div class="label">Players</div>
+        </div>
+        <div class="payout-stat">
+          <div class="value" id="calc-pot">$0</div>
+          <div class="label">Total Pot</div>
+        </div>
+        <div class="payout-stat">
+          <div class="value" id="calc-team-win">$0</div>
+          <div class="label">Team Win Pool</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="saveRound()">Save Round &amp; Go to Teams →</button>
+        <button class="btn btn-danger btn-sm" id="clear-round-btn" onclick="clearActiveRound()" style="display:none;">Clear Round</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       PAGE: TEAM BUILDER (commish only)
+  ==================================================== -->
+  <div id="page-teams" class="page">
+    <div class="page-header">
+      <h1>Team Builder</h1>
+      <p>Check in today's players and assign them to teams. Use Auto-Balance for fair matchups.</p>
+    </div>
+    <div id="no-round-teams" style="display:none;">
+      <div class="card">
+        <div class="empty-state">
+          <div class="icon">🏌️</div>
+          <p>No active round. <a href="#" onclick="showPage('round');return false;" style="color:var(--green)">Set up a round first.</a></p>
+        </div>
+      </div>
+    </div>
+    <div id="teams-page-content">
+      <div class="card">
+        <h2>Player Check-In &amp; Team Assignment</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <input type="text" id="player-search" placeholder="Search player…"
+            style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:200px;background:var(--warm-white);"
+            oninput="renderPlayerAssignList()">
+          <button class="btn btn-outline btn-sm" onclick="addGuest()">+ Add Guest</button>
+          <button class="btn btn-outline btn-sm" onclick="autoBalance()">⚖ Auto-Balance</button>
+          <span id="teams-player-count" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <div class="assign-grid" id="assign-list"></div>
+        <hr>
+        <div class="section-label">Team Preview</div>
+        <div class="teams-grid" id="teams-preview"></div>
+        <div class="btn-row">
+          <button class="btn btn-gold" onclick="saveTeams()">Save Teams &amp; Enter Scores →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       PAGE: SCORE ENTRY
+  ==================================================== -->
+  <div id="page-scores" class="page">
+    <div class="page-header">
+      <h1>Scores</h1>
+      <p id="scores-subtitle">Viewing current round scores.</p>
+    </div>
+    <div id="no-round-scores" style="display:none;">
+      <div class="card">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <p>No active round in progress.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Winner banner -->
+    <div id="winner-banner" class="winner-banner">
+      <div class="winner-trophy">🏆</div>
+      <div class="winner-text">
+        <h3 id="winner-team-name">Team A Wins!</h3>
+        <p id="winner-detail">Lowest combined score — collecting the pot.</p>
+      </div>
+    </div>
+
+    <!-- Team score cards -->
+    <div class="card" id="scores-main-card">
+      <h2>Team Scores</h2>
+      <div class="teams-grid" id="score-teams"></div>
+    </div>
+
+    <!-- Skins / CTH (commish only) -->
+    <div class="card commish-only" id="skins-card" style="display:none;">
+      <h2>Skins &amp; CTH</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div>
+          <div class="section-label" style="margin-top:0">Hole Winners (Skins)</div>
+          <div id="skins-holes"></div>
+        </div>
+        <div>
+          <div class="section-label" style="margin-top:0">Closest to the Hole</div>
+          <div id="cth-players"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payout summary -->
+    <div class="card" id="payout-card" style="display:none;">
+      <h2>💰 Payout Summary</h2>
+      <div class="payout-grid" id="payout-stats"></div>
+      <div class="section-label">Individual Payouts</div>
+      <div style="overflow-x:auto;">
+        <table class="lb-table" id="payout-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Team Win</th>
+              <th>Skins</th>
+              <th>CTH</th>
+              <th>Total</th>
+              <th class="commish-only" id="payout-th-paidin">Paid In</th>
+              <th class="commish-only" id="payout-th-paidout">Paid Out</th>
+            </tr>
+          </thead>
+          <tbody id="payout-body"></tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="margin-top:20px;">
+        <button class="btn btn-outline btn-sm" onclick="copyPayoutText()">📋 Copy Payout Summary</button>
+        <button class="btn btn-gold commish-only" id="finalize-btn" onclick="finalizeRound()" style="display:none;">
+          ✓ Finalize Round
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       PAGE: PLAYER STATS (public)
+  ==================================================== -->
+  <div id="page-stats" class="page active">
+    <div class="page-header">
+      <h1>Player Stats</h1>
+      <p>Scoring averages sorted best to worst. Click any player for their full history.</p>
+    </div>
+    <div class="card">
+      <h2>Leaderboard</h2>
+      <div class="stats-search">
+        <input type="text" id="stats-search" placeholder="Search player…" oninput="filterStats(this.value)">
+      </div>
+      <div id="stats-list"><div class="loading">Loading players…</div></div>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       PAGE: ROUND HISTORY (public)
+  ==================================================== -->
+  <div id="page-history" class="page">
+    <div class="page-header">
+      <h1>Round History</h1>
+      <p>All completed rounds — most recent first. Click to expand results.</p>
+    </div>
+    <div id="history-list"><div class="loading">Loading rounds…</div></div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Config (gitignored, injected at build time) -->
+<script src="config.js"></script>
+<!-- App logic -->
+<script src="app.js"></script>
+
+</body>
+</html>
