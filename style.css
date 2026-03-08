@@ -881,6 +881,18 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
   font-family: 'DM Mono', monospace;
 }
 
+/* ===== NUMBER INPUT — hide spin buttons globally ===== */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* ===== SKINS / CTH GRID ===== */
+.skins-cth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
 /* ===== SCORE COLOR CODING ===== */
 .score-green  { color: #2d5a40; }
 .score-yellow { color: #8a6a10; }
@@ -894,27 +906,176 @@ body.is-commish .commish-only-flex { display: flex; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 700px) {
-  header { padding: 0 14px; height: 56px; }
-  .logo { font-size: 16px; }
-  nav button { padding: 6px 8px; font-size: 10px; letter-spacing: 0.5px; }
-  .btn-auth { padding: 5px 8px; font-size: 9px; }
 
-  main { padding: 20px 14px; }
-  .page-header h1 { font-size: 26px; }
+  /* --- Header: two-row layout (logo+login / scrollable nav) --- */
+  header {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 0 14px;
+    gap: 0;
+  }
 
-  .form-grid { grid-template-columns: 1fr 1fr; }
-  .payout-grid { grid-template-columns: 1fr 1fr; }
-  .assign-grid { grid-template-columns: 1fr; }
-  .modal-stats-row { gap: 10px; }
+  .logo {
+    font-size: 17px;
+    flex: 1;
+    padding: 13px 0;
+  }
 
-  .stat-name { width: 110px; }
+  .header-actions { padding: 13px 0; }
 
-  .card { padding: 16px; }
-  .modal-box { padding: 24px 20px; }
+  .btn-auth { padding: 7px 10px; font-size: 9px; }
+
+  nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0 8px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    gap: 0;
+  }
+  nav::-webkit-scrollbar { display: none; }
+
+  nav button {
+    padding: 10px 14px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+  }
+  nav button.active {
+    border-bottom-color: var(--gold);
+    background: none;
+  }
+
+  /* --- Layout --- */
+  main { padding: 16px 12px; }
+  .page-header { margin-bottom: 16px; }
+  .page-header h1 { font-size: 24px; }
+  .page-header p { font-size: 13px; margin-top: 4px; }
+  .card { padding: 16px; margin-bottom: 14px; }
+
+  /* --- Forms: 16px prevents iOS auto-zoom on focus --- */
+  .form-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  .form-group input,
+  .form-group select {
+    font-size: 16px;
+    padding: 12px;
+    min-height: 48px;
+  }
+
+  /* --- Buttons: 44px min height (Apple HIG touch target) --- */
+  .btn { min-height: 44px; font-size: 15px; }
+  .btn-sm { min-height: 36px; font-size: 13px; }
+
+  .btn-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .btn-row .btn:not(.btn-sm):not(.btn-danger) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* --- Team check-in list --- */
+  .assign-grid { grid-template-columns: 1fr; gap: 0; }
+
+  .team-select-row { padding: 11px 6px; gap: 10px; }
+
+  .team-select-row input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .tsrow-name { font-size: 15px; }
+  .tsrow-avg  { font-size: 12px; width: 36px; }
+
+  .tsrow-select {
+    width: 86px;
+    padding: 8px 6px;
+    font-size: 15px;
+    min-height: 40px;
+  }
+
+  /* Search inputs */
+  #player-search    { width: 100% !important; font-size: 16px; min-height: 44px; }
+  #new-player-name  { font-size: 16px !important; min-height: 44px; }
+  .stats-search input { font-size: 16px; min-height: 44px; }
+  #players-admin-search { font-size: 16px; min-height: 44px; }
+
+  /* --- Score entry --- */
+  .team-score-input {
+    width: 88px;
+    height: 48px;
+    font-size: 22px;
+  }
+
+  .member-score-input {
+    width: 68px;
+    height: 44px;
+    font-size: 18px;
+    padding: 8px 6px;
+  }
+
+  .team-member { padding: 9px 0; }
+  .member-name { font-size: 14px; }
+
+  .skins-select {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 8px;
+  }
+
+  /* --- Skins/CTH: stack to single column --- */
+  .skins-cth-grid { grid-template-columns: 1fr; gap: 16px; }
+
+  /* --- Payout --- */
+  .payout-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .payout-stat { padding: 12px; }
+  .payout-stat .value { font-size: 22px; }
+  .lb-table th { font-size: 10px; padding: 7px 8px; }
+  .lb-table td { font-size: 13px; padding: 9px 8px; }
+
+  /* --- Stats leaderboard --- */
+  .stat-name  { width: 110px; }
+  .stat-bar-row { gap: 8px; padding: 9px 2px; }
+  .stat-avg   { font-size: 13px; }
+
+  /* --- Modals --- */
+  .modal-box { padding: 24px 16px; }
+  .modal-wide { margin: 0; border-radius: 12px 12px 0 0; }
+  .modal-stats-row { gap: 8px; }
+  .modal-stat .v { font-size: 20px; }
+  .modal-stat .l { font-size: 9px; }
+
+  /* --- Winner banner --- */
+  .winner-banner { padding: 16px; gap: 12px; }
+  .winner-trophy { font-size: 28px; }
+  .winner-text h3 { font-size: 17px; }
+
+  /* --- Toast: full-width centered at bottom --- */
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    text-align: center;
+  }
+
+  /* --- History --- */
+  .history-card { padding: 16px; }
+
+  /* --- Section label --- */
+  .section-label { margin-top: 14px; }
 }
 
 @media (max-width: 480px) {
-  .form-grid { grid-template-columns: 1fr; }
-  .payout-grid { grid-template-columns: 1fr 1fr; }
-  .teams-grid { grid-template-columns: 1fr 1fr; }
+  .form-grid   { grid-template-columns: 1fr; }
+  .teams-grid  { grid-template-columns: 1fr; }
+  .stat-name   { width: 95px; }
+  .stat-rounds { width: 36px; }
+
+  .team-score-input  { width: 80px; height: 50px; font-size: 24px; }
+  .member-score-input { width: 64px; height: 46px; font-size: 18px; }
 }

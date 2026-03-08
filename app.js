@@ -612,7 +612,7 @@ function renderTeamScoreCards() {
         <div class="team-card-header">
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
           ${state.isCommish
-            ? `<input type="number" class="team-score-input" placeholder="Score"
+            ? `<input type="number" inputmode="decimal" class="team-score-input" placeholder="Score"
                  min="-99" max="200" value="${manualScore === undefined ? '' : manualScore}"
                  oninput="updateTeamScore('${t}', this.value)" id="tbadge-${t}">`
             : `<span class="team-score-badge" id="tbadge-${t}">${manualScore ?? '—'}</span>`
@@ -628,7 +628,7 @@ function renderTeamScoreCards() {
               </div>
             </div>
             ${state.isCommish
-              ? `<input type="number" class="member-score-input" placeholder="—" min="-99" max="99"
+              ? `<input type="number" inputmode="decimal" class="member-score-input" placeholder="—" min="-99" max="99"
                    value="${state.scores[rp.id] !== undefined ? state.scores[rp.id] : ''}"
                    oninput="updateScore('${rp.id}', this.value)">`
               : `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;">
