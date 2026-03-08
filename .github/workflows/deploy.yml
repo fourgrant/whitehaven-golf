@@ -17,6 +17,8 @@ jobs:
           const SUPABASE_ANON_KEY = '${{ secrets.SUPABASE_ANON_KEY }}';
           const COMMISH_PASSWORD = '${{ secrets.COMMISH_PASSWORD }}';
           EOF
+          # Remove config.js from .gitignore so peaceiris picks it up
+          sed -i '/^config\.js$/d' .gitignore
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
