@@ -1030,6 +1030,8 @@ function copyPayoutText() {
 }
 
 // ===== STATS PAGE =====
+const LEADERBOARD_MIN_ROUNDS = 5;
+
 async function renderStats(filter) {
   const list = document.getElementById('stats-list');
   if (!list) return;
@@ -1037,41 +1039,64 @@ async function renderStats(filter) {
   if (!filter) await loadPlayers();
 
   const f = (filter || '').toLowerCase();
-  const players = state.players
+  const all = state.players
     .filter(p => !f || p.name.toLowerCase().includes(f))
     .sort((a, b) => (parseFloat(a.avg_score) || 99) - (parseFloat(b.avg_score) || 99));
 
-  if (!players.length) {
+  if (!all.length) {
     list.innerHTML = '<div class="empty-state"><p>No players found.</p></div>';
     return;
   }
 
-  const scores  = players.map(p => parseFloat(p.avg_score) || 40);
-  const minAvg  = Math.min(...scores);
-  const maxAvg  = Math.max(...scores);
-  const range   = maxAvg - minAvg || 1;
+  const qualified = all.filter(p => (p.rounds_played || 0) >= LEADERBOARD_MIN_ROUNDS);
+  const pending   = all.filter(p => (p.rounds_played || 0) <  LEADERBOARD_MIN_ROUNDS);
 
   const scoreColor = avg =>
     avg < 37 ? '#2d5a40' : avg < 40 ? '#4a8c5c' : avg < 43 ? '#c9a84c' : '#b94040';
 
-  list.innerHTML = players.map((p, i) => {
-    const avg  = parseFloat(p.avg_score) || 0;
-    const pct  = Math.max(4, ((avg - minAvg) / range) * 100);
-    const col  = scoreColor(avg);
-    return `
-      <div class="stat-bar-row" onclick="showPlayerModal('${p.id}')">
-        <div class="stat-rank">${i + 1}</div>
-        <div class="stat-name" title="${p.name}">${p.name}</div>
-        <div class="stat-rounds">${p.rounds_played || 0}r</div>
-        <div class="stat-bar-wrap">
-          <div class="stat-bar-bg">
-            <div class="stat-bar-fill" style="width:${pct}%;background:${col}"></div>
+  function buildBarRows(players, startRank) {
+    if (!players.length) return '';
+    const scores = players.map(p => parseFloat(p.avg_score) || 40);
+    const minAvg = Math.min(...scores);
+    const maxAvg = Math.max(...scores);
+    const range  = maxAvg - minAvg || 1;
+    return players.map((p, i) => {
+      const avg = parseFloat(p.avg_score) || 0;
+      const pct = Math.max(4, ((avg - minAvg) / range) * 100);
+      const col = scoreColor(avg);
+      const rank = startRank !== null ? `${startRank + i}` : '—';
+      return `
+        <div class="stat-bar-row" onclick="showPlayerModal('${p.id}')">
+          <div class="stat-rank">${rank}</div>
+          <div class="stat-name" title="${p.name}">${p.name}</div>
+          <div class="stat-rounds">${p.rounds_played || 0}r</div>
+          <div class="stat-bar-wrap">
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" style="width:${pct}%;background:${col}"></div>
+            </div>
           </div>
+          <div class="stat-avg" style="color:${col}">${avg.toFixed(1)}</div>
         </div>
-        <div class="stat-avg" style="color:${col}">${avg.toFixed(1)}</div>
+      `;
+    }).join('');
+  }
+
+  let html = buildBarRows(qualified, 1);
+
+  if (pending.length) {
+    html += `
+      <div style="margin-top:28px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+        <div class="section-label" style="margin:0;">Needs ${LEADERBOARD_MIN_ROUNDS}+ rounds to rank</div>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">${pending.length} player${pending.length > 1 ? 's' : ''}</span>
+      </div>
+      <div style="opacity:0.65;">
+        ${buildBarRows(pending, null)}
       </div>
     `;
-  }).join('');
+  }
+
+  list.innerHTML = html;
 }
 
 function filterStats(val) {
