@@ -196,6 +196,7 @@ function showPage(id) {
   if (id === 'scores')  renderScoresPage();
   if (id === 'stats')   renderStats();
   if (id === 'history') renderHistory();
+  if (id === 'players') renderPlayersAdmin();
 }
 
 // ===== DATA LOADING =====
@@ -363,7 +364,9 @@ function renderPlayerAssignList() {
   const container = document.getElementById('assign-list');
   if (!container) return;
 
-  const filtered = state.players.filter(p => !search || p.name.toLowerCase().includes(search));
+  const filtered = state.players.filter(p =>
+    p.active !== false && (!search || p.name.toLowerCase().includes(search))
+  );
   const checkedCount = state.checkedIn.size;
   const countEl = document.getElementById('teams-player-count');
   if (countEl) countEl.textContent = `${checkedCount} checked in`;
@@ -1187,6 +1190,68 @@ document.addEventListener('click', e => {
 });
 
 // ===== HISTORY PAGE =====
+// ===== PLAYER ADMIN =====
+async function addNewPlayer() {
+  const input = document.getElementById('new-player-name');
+  const name  = (input?.value || '').trim();
+  if (!name) { toast('Enter a player name.'); return; }
+  if (!db)   { toast('No DB connected.'); return; }
+
+  const { data, error } = await db.from('players')
+    .insert({ name, avg_score: null, rounds_played: 0, active: true })
+    .select().single();
+
+  if (error) { toast('Error: ' + error.message); return; }
+
+  input.value = '';
+  state.players.push(data);
+  state.players.sort((a, b) => (parseFloat(a.avg_score) || 99) - (parseFloat(b.avg_score) || 99));
+  toast(`${name} added!`);
+  renderPlayersAdmin();
+}
+
+async function togglePlayerActive(playerId, active) {
+  if (!db) return;
+  const { error } = await db.from('players').update({ active }).eq('id', playerId);
+  if (error) { toast('Error: ' + error.message); return; }
+  const p = state.players.find(p => p.id === playerId);
+  if (p) p.active = active;
+  toast(active ? 'Player reactivated.' : 'Player set to inactive.');
+  renderPlayersAdmin();
+}
+
+function renderPlayersAdmin() {
+  const container = document.getElementById('players-admin-list');
+  if (!container) return;
+
+  const search = (document.getElementById('players-admin-search')?.value || '').toLowerCase();
+  const active   = state.players.filter(p => p.active !== false);
+  const inactive = state.players.filter(p => p.active === false);
+  const all = [...active, ...inactive].filter(p => !search || p.name.toLowerCase().includes(search));
+
+  if (!all.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:8px 0;">No players found.</p>';
+    return;
+  }
+
+  container.innerHTML = all.map(p => {
+    const isActive = p.active !== false;
+    const avg      = p.avg_score != null ? parseFloat(p.avg_score).toFixed(1) : '—';
+    return `
+      <div class="player-admin-row${isActive ? '' : ' player-inactive'}">
+        <div>
+          <div class="player-admin-name">${p.name}</div>
+          <div class="player-admin-meta">${p.rounds_played || 0} rounds · avg ${avg}</div>
+        </div>
+        <button class="btn btn-sm ${isActive ? 'btn-outline' : 'btn-gold'}"
+          onclick="togglePlayerActive('${p.id}', ${!isActive})">
+          ${isActive ? 'Deactivate' : 'Reactivate'}
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
 async function deleteRound(roundId) {
   if (!db) { toast('No DB connected.'); return; }
   if (!confirm('Delete this round? Player stats will be recalculated. This cannot be undone.')) return;

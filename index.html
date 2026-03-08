@@ -54,6 +54,7 @@
     <button class="commish-tab" data-page="round" onclick="showPage('round')">Round</button>
     <button class="commish-tab" data-page="teams" onclick="showPage('teams')">Teams</button>
     <button class="commish-tab" data-page="scores" onclick="showPage('scores')">Scores</button>
+    <button class="commish-tab" data-page="players" onclick="showPage('players')">Players</button>
     <!-- Public tabs -->
     <button data-page="stats"   onclick="showPage('stats')"   class="active">Stats</button>
     <button data-page="history" onclick="showPage('history')"              >History</button>
@@ -228,6 +229,32 @@
           ✓ Finalize Round
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===================================================
+       PAGE: PLAYER ADMIN (commish only)
+  ==================================================== -->
+  <div id="page-players" class="page">
+    <div class="page-header">
+      <h1>Player Roster</h1>
+      <p>Add players and toggle active status. Inactive players won't appear at check-in.</p>
+    </div>
+    <div class="card">
+      <h2>Add Player</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="new-player-name" placeholder="Full name"
+          style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--warm-white);flex:1;min-width:180px;"
+          onkeydown="if(event.key==='Enter') addNewPlayer()">
+        <button class="btn btn-primary" onclick="addNewPlayer()">Add Player</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>All Players</h2>
+      <div class="stats-search">
+        <input type="text" id="players-admin-search" placeholder="Search player…" oninput="renderPlayersAdmin()">
+      </div>
+      <div id="players-admin-list"></div>
     </div>
   </div>
 

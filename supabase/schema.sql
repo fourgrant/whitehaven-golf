@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS players (
   name          text UNIQUE NOT NULL,
   avg_score     numeric DEFAULT 40.0,
   rounds_played integer DEFAULT 0,
+  active        boolean NOT NULL DEFAULT true,
   created_at    timestamptz DEFAULT now()
 );
 
@@ -19,8 +20,6 @@ CREATE TABLE IF NOT EXISTS rounds (
   course           text NOT NULL DEFAULT 'Whitehaven',
   buyin_per_player numeric NOT NULL DEFAULT 12,
   cth_per_player   numeric NOT NULL DEFAULT 2,
-  team_size        integer NOT NULL DEFAULT 4,
-  scores_to_keep   integer NOT NULL DEFAULT 3,
   status           text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup','in_progress','complete')),
   created_at       timestamptz DEFAULT now()
 );
