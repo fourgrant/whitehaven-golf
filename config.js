@@ -1,0 +1,3 @@
+const SUPABASE_URL = 'https://uqswmrkmhwizsfhitqwa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxc3dtcmttaHdpenNmaGl0cXdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTI3OTgsImV4cCI6MjA4ODU2ODc5OH0.g068MlpF--PjAGKgvVpYZ12xY18vsltAFyP6wa7XKac';
+const COMMISH_PASSWORD = 'palpar';
