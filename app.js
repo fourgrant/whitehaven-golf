@@ -197,6 +197,7 @@ function showPage(id) {
   if (id === 'stats')   renderStats();
   if (id === 'history') renderHistory();
   if (id === 'players') renderPlayersAdmin();
+  // 'howto' page is static HTML — no render needed
 }
 
 // ===== DATA LOADING =====
@@ -928,10 +929,13 @@ async function finalizeRound() {
   // Update round_players with scores, skins, CTH, paid status
   for (const rp of state.roundPlayers) {
     const skinsCount = Object.values(state.holeWinners).filter(id => id === rp.id).length;
+    const cthCount   = (state.cthWinners.hole2 === rp.id ? 1 : 0)
+                     + (state.cthWinners.hole5 === rp.id ? 1 : 0);
     await db.from('round_players').update({
-      score:      state.scores[rp.id] || null,
+      score:      state.scores[rp.id] !== undefined ? state.scores[rp.id] : null,
       holes_won:  skinsCount,
-      cth_winner: state.cthWinners.hole2 === rp.id || state.cthWinners.hole5 === rp.id,
+      cth_winner: cthCount > 0,
+      cth_count:  cthCount,
       paid_in:    state.paidIn.has(rp.id),
       paid_out:   state.paidOut.has(rp.id),
     }).eq('id', rp.id);
@@ -957,22 +961,38 @@ async function finalizeRound() {
   await db.from('round_results').delete().eq('round_id', state.currentRound.id);
   await db.from('round_results').insert(results);
 
-  // Update player stats — recalculate rolling avg
+  // Update player stats — rolling last-10 avg, blended with base_avg for new players
   for (const rp of state.roundPlayers) {
-    if (!state.scores[rp.id]) continue;
+    const currentScore = state.scores[rp.id];
+    if (currentScore === undefined || currentScore === null) continue;
     const player = state.players.find(p => p.id === rp.player_id);
     if (!player) continue;
 
+    // Fetch last 9 app scores (current round will be the 10th)
     const { data: history } = await db
       .from('round_players')
       .select('score')
       .eq('player_id', rp.player_id)
       .not('score', 'is', null)
-      .order('created_at', { ascending: false })  // approximate; good enough
+      .order('created_at', { ascending: false })
       .limit(9);
 
-    const recentScores = [state.scores[rp.id], ...(history || []).map(h => h.score)].slice(0, 10);
-    const newAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+    const appScores = [currentScore, ...(history || []).map(h => h.score)];
+    const n = appScores.length; // 1–10
+
+    let newAvg;
+    if (n >= 10) {
+      // Full window of app scores — pure rolling last-10
+      newAvg = appScores.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+    } else {
+      const baseAvg = parseFloat(player.base_avg ?? player.avg_score ?? 40);
+      if (baseAvg != null && (player.base_rounds || 0) > 0) {
+        // Blend app scores with historical base avg to fill the 10-round window
+        newAvg = (appScores.reduce((a, b) => a + b, 0) + baseAvg * (10 - n)) / 10;
+      } else {
+        newAvg = appScores.reduce((a, b) => a + b, 0) / n;
+      }
+    }
 
     await db.from('players').update({
       rounds_played: (player.rounds_played || 0) + 1,
@@ -1052,11 +1072,102 @@ function copyPayoutText() {
 // ===== STATS PAGE =====
 const LEADERBOARD_MIN_ROUNDS = 5;
 
+// ===== SEASON SUPERLATIVES =====
+async function renderSuperlatives() {
+  const grid = document.getElementById('superlatives-grid');
+  const title = document.getElementById('superlatives-title');
+  if (!grid) return;
+
+  const year = new Date().getFullYear();
+  if (title) title.textContent = `${year} Season Awards`;
+  if (!db) { grid.innerHTML = ''; return; }
+
+  const yearStart = `${year}-01-01`;
+
+  // Get all completed round IDs for this year
+  const { data: yearRounds } = await db.from('rounds')
+    .select('id').eq('status', 'complete').gte('date', yearStart);
+  const roundIds = (yearRounds || []).map(r => r.id);
+
+  if (!roundIds.length) {
+    grid.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;grid-column:1/-1;">No rounds completed yet in ${year}. Check back after the first round!</p>`;
+    return;
+  }
+
+  // Fetch all needed data in parallel
+  const [
+    { data: rpScores },
+    { data: results },
+    { data: rpSkins },
+    { data: rpCtps },
+  ] = await Promise.all([
+    db.from('round_players').select('score, player_id, players(name)').in('round_id', roundIds).not('score', 'is', null),
+    db.from('round_results').select('player_id, total_winnings, players(name)').in('round_id', roundIds),
+    db.from('round_players').select('player_id, holes_won, players(name)').in('round_id', roundIds),
+    db.from('round_players').select('player_id, cth_count, players(name)').in('round_id', roundIds),
+  ]);
+
+  // Best individual score (lowest)
+  const allScores = (rpScores || []).map(r => ({ name: r.players?.name, score: r.score }));
+  const bestRound = allScores.sort((a, b) => a.score - b.score)[0];
+
+  // Most money
+  const moneyMap = {};
+  (results || []).forEach(r => {
+    const key = r.player_id;
+    if (!moneyMap[key]) moneyMap[key] = { name: r.players?.name, total: 0 };
+    moneyMap[key].total += parseFloat(r.total_winnings || 0);
+  });
+  const topMoney = Object.values(moneyMap).sort((a, b) => b.total - a.total)[0];
+
+  // Most skins (holes won)
+  const skinsMap = {};
+  (rpSkins || []).forEach(r => {
+    const key = r.player_id;
+    if (!skinsMap[key]) skinsMap[key] = { name: r.players?.name, total: 0 };
+    skinsMap[key].total += (r.holes_won || 0);
+  });
+  const topSkins = Object.values(skinsMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total)[0];
+
+  // Most CTPs
+  const ctpMap = {};
+  (rpCtps || []).forEach(r => {
+    const key = r.player_id;
+    if (!ctpMap[key]) ctpMap[key] = { name: r.players?.name, total: 0 };
+    ctpMap[key].total += (r.cth_count || 0);
+  });
+  const topCtp = Object.values(ctpMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total)[0];
+
+  const tile = (icon, label, name, value) => name ? `
+    <div class="superlative-tile">
+      <div class="superlative-icon">${icon}</div>
+      <div class="superlative-label">${label}</div>
+      <div class="superlative-name">${name}</div>
+      <div class="superlative-value">${value}</div>
+    </div>
+  ` : `
+    <div class="superlative-tile superlative-empty">
+      <div class="superlative-icon">${icon}</div>
+      <div class="superlative-label">${label}</div>
+      <div class="superlative-name" style="color:var(--text-muted);font-weight:400;">—</div>
+    </div>
+  `;
+
+  grid.innerHTML =
+    tile('🏌️', 'Best Round', bestRound?.name, bestRound?.score) +
+    tile('💰', 'Most Winnings', topMoney?.name, topMoney ? `$${topMoney.total.toFixed(2)}` : '') +
+    tile('🦴', 'Most Skins', topSkins?.name, topSkins ? `${topSkins.total} hole${topSkins.total !== 1 ? 's' : ''}` : '') +
+    tile('📍', 'Most CTPs', topCtp?.name, topCtp ? `${topCtp.total} CTP${topCtp.total !== 1 ? 's' : ''}` : '');
+}
+
 async function renderStats(filter) {
   const list = document.getElementById('stats-list');
   if (!list) return;
 
-  if (!filter) await loadPlayers();
+  if (!filter) {
+    await loadPlayers();
+    renderSuperlatives(); // fire async, don't await — loads independently
+  }
 
   const f = (filter || '').toLowerCase();
   const all = state.players
@@ -1264,21 +1375,39 @@ async function deleteRound(roundId) {
   const { error } = await db.from('rounds').delete().eq('id', roundId);
   if (error) { toast('Error deleting round: ' + error.message); return; }
 
-  // Recalculate stats for each affected player
+  // Recalculate stats for each affected player using base_avg blending
   for (const pid of playerIds) {
+    const player = state.players.find(p => p.id === pid);
+    const baseAvg    = parseFloat(player?.base_avg ?? player?.avg_score ?? 40);
+    const baseRounds = player?.base_rounds || 0;
+
     const { data: remaining } = await db
       .from('round_players')
       .select('score')
       .eq('player_id', pid)
-      .not('score', 'is', null);
+      .not('score', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-    const scores = (remaining || []).map(r => r.score).filter(s => s !== null && !isNaN(s));
-    const rounds_played = scores.length;
-    const avg_score = rounds_played > 0
-      ? scores.reduce((a, b) => a + b, 0) / rounds_played
-      : null;
+    const appScores = (remaining || []).map(r => r.score).filter(s => s !== null && !isNaN(s));
+    const n = appScores.length;
+    const rounds_played = baseRounds + n;
 
-    await db.from('players').update({ rounds_played, avg_score }).eq('id', pid);
+    let avg_score;
+    if (n === 0) {
+      avg_score = baseAvg;
+    } else if (n >= 10) {
+      avg_score = appScores.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+    } else if (baseAvg != null && baseRounds > 0) {
+      avg_score = (appScores.reduce((a, b) => a + b, 0) + baseAvg * (10 - n)) / 10;
+    } else {
+      avg_score = appScores.reduce((a, b) => a + b, 0) / n;
+    }
+
+    await db.from('players').update({
+      rounds_played,
+      avg_score: parseFloat(avg_score.toFixed(2)),
+    }).eq('id', pid);
   }
 
   toast('Round deleted and stats updated.');
