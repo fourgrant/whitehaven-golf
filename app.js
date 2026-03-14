@@ -256,10 +256,19 @@ function renderRoundPage() {
   const today = new Date().toISOString().split('T')[0];
   const r = state.currentRound;
 
+  const sel = document.getElementById('round-commish');
+  sel.innerHTML = '<option value="">— Select commish</option>' +
+    [...state.players]
+      .filter(p => p.active !== false)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(p => `<option value="${p.id}">${p.name}</option>`)
+      .join('');
+
   if (r && r.status !== 'complete') {
     document.getElementById('round-date').value     = r.date || today;
     document.getElementById('round-course').value   = r.course || 'Whitehaven';
     document.getElementById('round-buyin').value    = r.buyin_per_player ?? 12;
+    sel.value = r.lead_commish_id || '';
     document.getElementById('round-badge-text').textContent = `Editing: ${r.date} at ${r.course}`;
     document.getElementById('round-active-badge').style.display = 'block';
     document.getElementById('clear-round-btn').style.display = '';
@@ -267,6 +276,7 @@ function renderRoundPage() {
     document.getElementById('round-date').value     = today;
     document.getElementById('round-course').value   = 'Whitehaven';
     document.getElementById('round-buyin').value    = 12;
+    sel.value = '';
     document.getElementById('round-active-badge').style.display = 'none';
     document.getElementById('clear-round-btn').style.display = 'none';
   }
@@ -292,6 +302,7 @@ async function saveRound() {
     buyin_per_player: parseFloat(document.getElementById('round-buyin').value) || 12,
     cth_per_player:   2,
     status:           'setup',
+    lead_commish_id:  document.getElementById('round-commish').value || null,
   };
 
   if (!roundData.date) { toast('Please select a date.'); return; }
