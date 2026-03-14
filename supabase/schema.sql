@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   buyin_per_player numeric NOT NULL DEFAULT 12,
   cth_per_player   numeric NOT NULL DEFAULT 2,
   status           text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup','in_progress','complete')),
+  lead_commish_id  uuid REFERENCES players(id),
   created_at       timestamptz DEFAULT now()
 );
 
