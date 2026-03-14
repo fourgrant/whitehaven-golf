@@ -238,6 +238,27 @@ main {
   margin-bottom: 20px;
 }
 
+.btn-copy-teams {
+  display: block;
+  margin-bottom: 12px;
+  padding: 6px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--green);
+  background: white;
+  border: 1.5px solid var(--green);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-copy-teams:hover {
+  background: var(--green);
+  color: white;
+}
+
 .team-card {
   background: var(--warm-white);
   border: 1.5px solid var(--border);

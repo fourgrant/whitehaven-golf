@@ -367,7 +367,7 @@ function renderPlayerAssignList() {
 
   const filtered = state.players.filter(p =>
     p.active !== false && (!search || p.name.toLowerCase().includes(search))
-  );
+  ).sort((a, b) => a.name.localeCompare(b.name));
   const checkedCount = state.checkedIn.size;
   const countEl = document.getElementById('teams-player-count');
   if (countEl) countEl.textContent = `${checkedCount} checked in`;
@@ -419,26 +419,45 @@ function renderTeamPreview() {
     return;
   }
 
-  container.innerHTML = Object.entries(teams).sort().map(([t, players]) => {
-    const avgSum = players.reduce((s, p) => s + (parseFloat(p.avg_score) || 40), 0);
-    const teamAvg = players.length ? (avgSum / players.length).toFixed(1) : '—';
-    return `
-      <div class="team-card">
-        <div class="team-card-header">
-          <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
-          <span class="team-score-badge">avg ${teamAvg}</span>
-        </div>
-        ${players.map(p => `
-          <div class="team-member">
-            <span class="member-name">${p.name}</span>
-            <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted)">
-              ${p.avg_score ? parseFloat(p.avg_score).toFixed(1) : '?'}
-            </span>
+  const teamEntries = Object.entries(teams).sort();
+  const copyText = teamEntries.map(([t, players]) =>
+    `Team ${t}\n` + players.map(p => p.name).join('\n')
+  ).join('\n\n');
+
+  container.innerHTML =
+    `<button class="btn-copy-teams" onclick="copyTeamsToClipboard()" title="Copy all teams">Copy Teams</button>` +
+    `<div id="teams-preview-cards">` +
+    teamEntries.map(([t, players]) => {
+      const avgSum = players.reduce((s, p) => s + (parseFloat(p.avg_score) || 40), 0);
+      const teamAvg = players.length ? (avgSum / players.length).toFixed(1) : '—';
+      return `
+        <div class="team-card">
+          <div class="team-card-header">
+            <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
+            <span class="team-score-badge">avg ${teamAvg}</span>
           </div>
-        `).join('')}
-      </div>
-    `;
-  }).join('');
+          ${players.map(p => `
+            <div class="team-member">
+              <span class="member-name">${p.name}</span>
+              <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted)">
+                ${p.avg_score ? parseFloat(p.avg_score).toFixed(1) : '?'}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }).join('') +
+    `</div>`;
+
+  // store copy text for the handler
+  container.dataset.copyText = copyText;
+}
+
+function copyTeamsToClipboard() {
+  const container = document.getElementById('teams-preview');
+  const text = container?.dataset.copyText;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => toast('Teams copied!'));
 }
 
 function getTeamGroupsByPlayerId() {
