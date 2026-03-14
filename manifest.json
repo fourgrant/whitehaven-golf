@@ -1,0 +1,17 @@
+{
+  "name": "Whitehaven Golf League",
+  "short_name": "WHG",
+  "description": "Whitehaven Golf Group — rounds, teams, scores, and stats.",
+  "start_url": "/whitehaven-golf/",
+  "display": "standalone",
+  "background_color": "#1a3a2a",
+  "theme_color": "#1a3a2a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

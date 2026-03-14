@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#1a3a2a"/>
+
+  <!-- Flag pole -->
+  <rect x="196" y="120" width="14" height="280" rx="7" fill="#c9a84c"/>
+
+  <!-- Flag -->
+  <path d="M210 120 L340 168 L210 216 Z" fill="#c9a84c"/>
+
+  <!-- Ground / hill -->
+  <ellipse cx="256" cy="400" rx="110" ry="28" fill="#2d5a3d"/>
+
+  <!-- Ball -->
+  <circle cx="203" cy="400" r="22" fill="#f5f0e8"/>
+</svg>
