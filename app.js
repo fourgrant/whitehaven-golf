@@ -1137,11 +1137,13 @@ async function renderSuperlatives() {
     db.from('round_players').select('player_id, cth_count, players(name)').in('round_id', roundIds),
   ]);
 
-  // Best individual score (lowest)
-  const allScores = (rpScores || []).map(r => ({ name: r.players?.name, score: r.score }));
-  const bestRound = allScores.sort((a, b) => a.score - b.score)[0];
+  // Best individual score (lowest) — allow ties
+  const allScores = (rpScores || []).map(r => ({ name: r.players?.name, score: r.score })).filter(r => r.score > 0);
+  allScores.sort((a, b) => a.score - b.score);
+  const bestScore = allScores[0]?.score;
+  const bestRoundTied = bestScore != null ? allScores.filter(r => r.score === bestScore) : [];
 
-  // Most money
+  // Most money (no ties shown per spec)
   const moneyMap = {};
   (results || []).forEach(r => {
     const key = r.player_id;
@@ -1150,29 +1152,33 @@ async function renderSuperlatives() {
   });
   const topMoney = Object.values(moneyMap).sort((a, b) => b.total - a.total)[0];
 
-  // Most skins (holes won)
+  // Most skins (holes won) — allow ties
   const skinsMap = {};
   (rpSkins || []).forEach(r => {
     const key = r.player_id;
     if (!skinsMap[key]) skinsMap[key] = { name: r.players?.name, total: 0 };
     skinsMap[key].total += (r.holes_won || 0);
   });
-  const topSkins = Object.values(skinsMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total)[0];
+  const skinsSorted = Object.values(skinsMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
+  const topSkinsVal = skinsSorted[0]?.total;
+  const topSkinsTied = topSkinsVal != null ? skinsSorted.filter(p => p.total === topSkinsVal) : [];
 
-  // Most CTPs
+  // Most CTPs — allow ties
   const ctpMap = {};
   (rpCtps || []).forEach(r => {
     const key = r.player_id;
     if (!ctpMap[key]) ctpMap[key] = { name: r.players?.name, total: 0 };
     ctpMap[key].total += (r.cth_count || 0);
   });
-  const topCtp = Object.values(ctpMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total)[0];
+  const ctpSorted = Object.values(ctpMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
+  const topCtpVal = ctpSorted[0]?.total;
+  const topCtpTied = topCtpVal != null ? ctpSorted.filter(p => p.total === topCtpVal) : [];
 
-  const tile = (icon, label, name, value) => name ? `
+  const tile = (icon, label, tied, value) => tied.length ? `
     <div class="superlative-tile">
       <div class="superlative-icon">${icon}</div>
       <div class="superlative-label">${label}</div>
-      <div class="superlative-name">${name}</div>
+      <div class="superlative-name">${tied.map(p => p.name).join(', ')}</div>
       <div class="superlative-value">${value}</div>
     </div>
   ` : `
@@ -1184,10 +1190,10 @@ async function renderSuperlatives() {
   `;
 
   grid.innerHTML =
-    tile('🏌️', 'Best Round', bestRound?.name, bestRound?.score) +
-    tile('💰', 'Most Winnings', topMoney?.name, topMoney ? `$${topMoney.total.toFixed(2)}` : '') +
-    tile('🦴', 'Most Skins', topSkins?.name, topSkins ? `${topSkins.total} hole${topSkins.total !== 1 ? 's' : ''}` : '') +
-    tile('📍', 'Most CTPs', topCtp?.name, topCtp ? `${topCtp.total} CTP${topCtp.total !== 1 ? 's' : ''}` : '');
+    tile('🏌️', 'Best Round', bestRoundTied, bestScore) +
+    tile('💰', 'Most Winnings', topMoney ? [topMoney] : [], topMoney ? `$${topMoney.total.toFixed(2)}` : '') +
+    tile('🦴', 'Most Skins', topSkinsTied, topSkinsVal != null ? `${topSkinsVal} hole${topSkinsVal !== 1 ? 's' : ''}` : '') +
+    tile('📍', 'Most CTPs', topCtpTied, topCtpVal != null ? `${topCtpVal} CTP${topCtpVal !== 1 ? 's' : ''}` : '');
 }
 
 async function renderStats(filter) {
