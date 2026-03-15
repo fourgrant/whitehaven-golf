@@ -539,6 +539,189 @@ async function addGuest() {
   toast(`${data.name} added as guest!`);
 }
 
+// ===== PASTE LIST =====
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function matchPastedNames(lines, players) {
+  const active = players.filter(p => p.active !== false);
+  const results = [];
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const token = line.toLowerCase();
+    const words = token.split(/\s+/);
+    let candidates = [];
+
+    // 1. Exact full name
+    candidates = active.filter(p => p.name.toLowerCase() === token);
+
+    // 2. First name only (single word in paste)
+    if (!candidates.length && words.length === 1) {
+      candidates = active.filter(p => p.name.toLowerCase().split(/\s+/)[0] === token);
+    }
+
+    // 3. Last name only (single word in paste)
+    if (!candidates.length && words.length === 1) {
+      candidates = active.filter(p => {
+        const parts = p.name.toLowerCase().split(/\s+/);
+        return parts[parts.length - 1] === token;
+      });
+    }
+
+    // 4. First name + last initial (e.g. "John M" → "John Markham")
+    if (!candidates.length && words.length === 2 && words[1].length === 1) {
+      candidates = active.filter(p => {
+        const parts = p.name.toLowerCase().split(/\s+/);
+        return parts[0] === words[0] && parts[parts.length - 1].startsWith(words[1]);
+      });
+    }
+
+    // 5. Contains fallback
+    if (!candidates.length) {
+      candidates = active.filter(p => {
+        const pName = p.name.toLowerCase();
+        return pName.includes(token) || token.includes(pName);
+      });
+    }
+
+    // Deduplicate by id
+    const unique = [...new Map(candidates.map(p => [p.id, p])).values()];
+
+    if (unique.length === 1) {
+      results.push({ raw, matched: unique[0], ambiguous: [] });
+    } else if (unique.length > 1) {
+      results.push({ raw, matched: null, ambiguous: unique });
+    } else {
+      results.push({ raw, matched: null, ambiguous: [] });
+    }
+  }
+  return results;
+}
+
+function openPasteModal() {
+  document.getElementById('paste-input-section').style.display = '';
+  document.getElementById('paste-results-section').style.display = 'none';
+  document.getElementById('paste-textarea').value = '';
+  document.getElementById('paste-modal').classList.add('open');
+  setTimeout(() => document.getElementById('paste-textarea').focus(), 150);
+}
+
+function closePasteModal() {
+  document.getElementById('paste-modal').classList.remove('open');
+}
+
+function submitPasteList() {
+  const text = document.getElementById('paste-textarea').value;
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  if (!lines.length) { toast('Paste some names first!'); return; }
+
+  const results = matchPastedNames(lines, state.players);
+
+  // Bulk check in all matched players (single re-render at end)
+  let checkedCount = 0;
+  for (const r of results) {
+    if (r.matched) {
+      if (!state.checkedIn.has(r.matched.id)) {
+        state.checkedIn.add(r.matched.id);
+        if (!state.teamAssignments[r.matched.id]) state.teamAssignments[r.matched.id] = '';
+      }
+      checkedCount++;
+    }
+  }
+  renderPlayerAssignList();
+  renderTeamPreview();
+  updateCalc();
+
+  // Switch to results view
+  document.getElementById('paste-input-section').style.display = 'none';
+  document.getElementById('paste-results-section').style.display = '';
+  document.getElementById('paste-success-msg').textContent =
+    `✅ ${checkedCount} player${checkedCount !== 1 ? 's' : ''} checked in`;
+
+  const unresolved = results.filter(r => !r.matched);
+  const unresolvedList = document.getElementById('paste-unresolved-list');
+
+  if (!unresolved.length) {
+    unresolvedList.innerHTML = '';
+    return;
+  }
+
+  unresolvedList.innerHTML =
+    `<div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">⚠️ ${unresolved.length} unresolved name${unresolved.length !== 1 ? 's' : ''}</div>` +
+    unresolved.map((r, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;" id="paste-row-${i}">
+        <span style="font-family:'DM Mono',monospace;font-size:13px;min-width:80px;flex-shrink:0;">${escHtml(r.raw)}</span>
+        ${r.ambiguous.length > 1
+          ? `<select onchange="resolvePastedName(${i}, this.value)" style="flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+               <option value="">— Pick player</option>
+               ${r.ambiguous.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`).join('')}
+             </select>`
+          : `<span style="font-size:12px;color:var(--text-muted);flex:1;">Not found</span>
+             <button class="btn btn-outline btn-sm" onclick="resolvePastedNameGuest('${escHtml(r.raw)}', ${i})">+ Add Guest</button>`
+        }
+        <button class="btn btn-outline btn-sm" style="color:var(--text-muted);" onclick="dismissPasteRow(${i})">Skip</button>
+      </div>
+    `).join('');
+}
+
+function resolvePastedName(rowIndex, playerId) {
+  if (!playerId) return;
+  const player = state.players.find(p => p.id === playerId);
+  if (!player) return;
+  if (!state.checkedIn.has(playerId)) {
+    state.checkedIn.add(playerId);
+    if (!state.teamAssignments[playerId]) state.teamAssignments[playerId] = '';
+    renderPlayerAssignList();
+    renderTeamPreview();
+    updateCalc();
+  }
+  dismissPasteRow(rowIndex);
+  const el = document.getElementById('paste-success-msg');
+  const n = parseInt(el.textContent.match(/\d+/)?.[0] || '0') + 1;
+  el.textContent = `✅ ${n} player${n !== 1 ? 's' : ''} checked in`;
+}
+
+async function resolvePastedNameGuest(name, rowIndex) {
+  const avgInput = prompt(`Estimated average score for ${name} (e.g. 40):`);
+  const avg = parseFloat(avgInput) || 40;
+
+  if (!db) {
+    const guest = { id: 'guest-' + Date.now(), name: name.trim(), avg_score: avg, rounds_played: 0 };
+    state.players.push(guest);
+    state.checkedIn.add(guest.id);
+    state.teamAssignments[guest.id] = '';
+    renderPlayerAssignList();
+    renderTeamPreview();
+    toast(`${name} added as guest!`);
+  } else {
+    const { data, error } = await db.from('players')
+      .insert({ name: name.trim(), avg_score: avg, rounds_played: 0 })
+      .select().single();
+    if (error) { toast('Error: ' + error.message); return; }
+    state.players.push(data);
+    state.players.sort((a, b) => (a.avg_score || 99) - (b.avg_score || 99));
+    state.checkedIn.add(data.id);
+    state.teamAssignments[data.id] = '';
+    renderPlayerAssignList();
+    renderTeamPreview();
+    toast(`${data.name} added as guest!`);
+  }
+
+  dismissPasteRow(rowIndex);
+  const el = document.getElementById('paste-success-msg');
+  const n = parseInt(el.textContent.match(/\d+/)?.[0] || '0') + 1;
+  el.textContent = `✅ ${n} player${n !== 1 ? 's' : ''} checked in`;
+}
+
+function dismissPasteRow(rowIndex) {
+  const row = document.getElementById(`paste-row-${rowIndex}`);
+  if (row) row.style.display = 'none';
+}
+
 async function saveTeams() {
   const assigned = [...state.checkedIn].filter(id => state.teamAssignments[id]);
   if (!assigned.length) { toast('Assign at least one player to a team!'); return; }
