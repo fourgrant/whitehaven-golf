@@ -1030,8 +1030,8 @@ async function finalizeRound() {
     }).eq('id', rp.player_id);
   }
 
-  // Mark round complete
-  await db.from('rounds').update({ status: 'complete' }).eq('id', state.currentRound.id);
+  // Mark round complete and save team scores
+  await db.from('rounds').update({ status: 'complete', team_scores: state.teamScores }).eq('id', state.currentRound.id);
 
   // Clear state
   state.currentRoundId  = null;
@@ -1563,13 +1563,15 @@ async function loadHistoryRoundData(roundId, container) {
     <div class="teams-grid">
   `;
 
+  const savedTeamScores = round?.team_scores || {};
   Object.entries(teams).sort().forEach(([t, tRps]) => {
     const isWin = winTeams.includes(t);
+    const tScore = savedTeamScores[t];
     html += `
       <div class="team-card ${isWin ? 'winning' : ''}">
         <div class="team-card-header">
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
-          ${isWin ? `<span class="team-score-badge winner">🏆</span>` : ''}
+          ${tScore != null ? `<span class="team-score-badge${isWin ? ' winner' : ''}">${isWin ? '🏆 ' : ''}${tScore}</span>` : (isWin ? `<span class="team-score-badge winner">🏆</span>` : '')}
         </div>
         ${tRps.map(rp => `
           <div class="team-member">
