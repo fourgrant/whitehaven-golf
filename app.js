@@ -1474,7 +1474,7 @@ async function renderHistory() {
 
   const { data: rounds, error } = await db
     .from('rounds')
-    .select('*')
+    .select('*, lead_commish:players!lead_commish_id(name)')
     .eq('status', 'complete')
     .order('date', { ascending: false });
 
@@ -1554,10 +1554,11 @@ async function loadHistoryRoundData(roundId, container) {
   const totalPot   = rps.length * (parseFloat(round?.buyin_per_player) || 0);
   const numPlayers = rps.length;
 
+  const commishName = round?.lead_commish?.name;
   let html = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);">
-        ${numPlayers} players · $${totalPot.toFixed(0)} pot
+        ${numPlayers} players · $${totalPot.toFixed(0)} pot${commishName ? ` · commish: ${commishName}` : ''}
       </span>
     </div>
     <div class="teams-grid">
