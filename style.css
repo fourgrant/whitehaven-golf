@@ -489,9 +489,7 @@ main {
   font-weight: 700;
   color: var(--green);
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .superlative-value {
