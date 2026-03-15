@@ -28,6 +28,26 @@
   </div>
 </div>
 
+<!-- ===== PASTE LIST MODAL ===== -->
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal-box modal-wide">
+    <button class="modal-close" onclick="closePasteModal()">✕</button>
+    <div class="modal-title">Paste Check-In List</div>
+    <div id="paste-input-section">
+      <div class="modal-subtitle">Paste your group chat list — one name per line.</div>
+      <textarea id="paste-textarea"
+        style="width:100%;height:200px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:13px;resize:vertical;background:var(--warm-white);box-sizing:border-box;margin-top:8px;"
+        placeholder="Burton&#10;Joe&#10;Benton&#10;Dick&#10;John M&#10;Boone&#10;David"></textarea>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="submitPasteList()">Check In Players</button>
+    </div>
+    <div id="paste-results-section" style="display:none;">
+      <div id="paste-success-msg" style="font-size:15px;font-weight:600;color:var(--green);margin-bottom:12px;"></div>
+      <div id="paste-unresolved-list"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="closePasteModal()">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== PLAYER DETAIL MODAL ===== -->
 <div class="modal-overlay" id="player-modal">
   <div class="modal-box modal-wide">
@@ -157,6 +177,7 @@
             style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:200px;background:var(--warm-white);"
             oninput="renderPlayerAssignList()">
           <button class="btn btn-outline btn-sm" onclick="addGuest()">+ Add Guest</button>
+          <button class="btn btn-outline btn-sm" onclick="openPasteModal()">📋 Paste List</button>
           <button class="btn btn-outline btn-sm" onclick="autoBalance()">⚖ Auto-Balance</button>
           <span id="teams-player-count" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
         </div>
