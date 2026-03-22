@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   status           text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup','in_progress','complete')),
   lead_commish_id  uuid REFERENCES players(id),
   team_scores      jsonb DEFAULT '{}'::jsonb,  -- map of team letter -> score, e.g. {"A":107,"B":112}
+  round_state      jsonb DEFAULT '{}'::jsonb,  -- draft state: {holeWinners, cthWinners, tiebreakerScores}
   created_at       timestamptz DEFAULT now()
 );
 
