@@ -1912,14 +1912,17 @@ async function renderHistory() {
 
   // Auto-open deep-linked round
   if (_pendingRoundOpen) {
-    const el = document.getElementById('hcard-' + _pendingRoundOpen);
-    if (el) {
-      setTimeout(() => {
+    const pendingId = _pendingRoundOpen;
+    _pendingRoundOpen = null;
+    const el   = document.getElementById('hcard-' + pendingId);
+    const body = document.getElementById('hbody-' + pendingId);
+    if (el && body) {
+      el.classList.add('open');
+      setTimeout(async () => {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        toggleHistoryCard(_pendingRoundOpen, el);
+        await loadHistoryRoundData(pendingId, body);
       }, 100);
     }
-    _pendingRoundOpen = null;
   }
 }
 
