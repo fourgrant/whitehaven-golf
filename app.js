@@ -1517,17 +1517,17 @@ function podiumTile(icon, label, places, formatVal) {
   `;
 
   const first    = places[0];
-  const firstName = first.names.length > 2
-    ? `${first.names[0]} +${first.names.length - 1}`
+  const firstName = first.names.length > 3
+    ? `${first.names.slice(0, 2).join(', ')} +${first.names.length - 2}`
     : first.names.join(', ');
 
   const podiumRows = places.slice(1).map((p, i) => {
     const num   = i + 2;
-    const pname = p.names.length > 1 ? `${p.names[0]} +${p.names.length - 1}` : p.names[0];
+    const pname = p.names.join(', ');
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-top:5px;">
         <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0;">${num}</span>
-        <span style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px;">${pname}</span>
+        <span style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;margin-left:4px;line-height:1.4;">${pname}</span>
         <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);flex-shrink:0;">${formatVal(p.raw)}</span>
       </div>
     `;
