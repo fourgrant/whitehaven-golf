@@ -128,12 +128,24 @@ const SEED_PLAYERS = [
   {id:'local-49', name:'Sam G.',         avg_score:44.0,  rounds_played:7},
 ];
 
+// ===== DEEP LINK =====
+let _pendingRoundOpen = null;
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
   initAuth();
   await loadPlayers();
   if (state.currentRoundId) await loadCurrentRound();
   renderNav();
+
+  // Check for deep-linked round: ?round=<uuid>
+  const deepRound = new URLSearchParams(window.location.search).get('round');
+  if (deepRound) {
+    _pendingRoundOpen = deepRound;
+    showPage('history');
+    return;
+  }
+
   // Default page
   if (state.isCommish && state.currentRound && state.currentRound.status !== 'complete') {
     showPage(state.currentRound.status === 'in_progress' ? 'scores' : 'round');
@@ -1469,13 +1481,74 @@ async function renderSuperlatives() {
     tile('📍', 'Most CTPs', topCtpTied, topCtpVal != null ? `${topCtpVal} CTP${topCtpVal !== 1 ? 's' : ''}` : '');
 }
 
+async function renderUpcomingRound() {
+  const el = document.getElementById('upcoming-callout');
+  if (!el || !db) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await db
+    .from('rounds')
+    .select('id, date, course, buyin_per_player')
+    .neq('status', 'complete')
+    .gte('date', today)
+    .order('date', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (!data) { el.style.display = 'none'; return; }
+
+  const dateObj = new Date(data.date + 'T12:00:00');
+  const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateLong = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const isToday  = data.date === today;
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="
+      background: var(--green);
+      color: var(--cream);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      border: 2px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    ">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">
+          ${isToday ? '⛳ Today' : '⛳ Next Round'}
+        </div>
+        <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--gold-light);line-height:1.2;">
+          ${weekday}, ${dateLong}
+        </div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--cream);opacity:0.8;margin-top:4px;">
+          ${data.course} · $${data.buyin_per_player} buy-in
+        </div>
+      </div>
+      <button onclick="copyRsvpLinkFromStats('${data.id}')"
+        style="background:var(--gold);color:var(--green);border:none;border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.5px;cursor:pointer;white-space:nowrap;">
+        Copy RSVP Link
+      </button>
+    </div>
+  `;
+}
+
+function copyRsvpLinkFromStats(roundId) {
+  const url = `${window.location.origin}/rsvp.html?round=${roundId}`;
+  navigator.clipboard.writeText(url).then(() => toast('RSVP link copied!'));
+}
+
 async function renderStats(filter) {
   const list = document.getElementById('stats-list');
   if (!list) return;
 
   if (!filter) {
     await loadPlayers();
-    renderSuperlatives(); // fire async, don't await — loads independently
+    renderUpcomingRound();    // fire async, don't await
+    renderSuperlatives();     // fire async, don't await — loads independently
   }
 
   const f = (filter || '').toLowerCase();
@@ -1768,23 +1841,46 @@ async function renderHistory() {
 
   state.historyRounds = rounds;
 
-  list.innerHTML = rounds.map(r => `
-    <div class="history-card" id="hcard-${r.id}">
-      <div class="history-card-header" onclick="toggleHistoryCard('${r.id}', document.getElementById('hcard-${r.id}'))" style="cursor:pointer;">
-        <div>
-          <div class="history-date">${r.date}</div>
-          <div class="history-meta">${r.course}</div>
+  list.innerHTML = rounds.map(r => {
+    const dateObj  = new Date(r.date + 'T12:00:00');
+    const dateFmt  = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="history-card" id="hcard-${r.id}">
+        <div class="history-card-header" onclick="toggleHistoryCard('${r.id}', document.getElementById('hcard-${r.id}'))" style="cursor:pointer;">
+          <div>
+            <div class="history-date">${dateFmt}</div>
+            <div class="history-meta">${r.course}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button title="Copy link to this round" onclick="event.stopPropagation();shareRound('${r.id}')"
+              style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer;color:var(--text-muted);">🔗</button>
+            ${state.isCommish ? `<button class="btn btn-danger btn-sm commish-only" onclick="event.stopPropagation();deleteRound('${r.id}')" style="font-size:11px;padding:3px 8px;">Delete</button>` : ''}
+            <span class="history-expand">▼</span>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          ${state.isCommish ? `<button class="btn btn-danger btn-sm commish-only" onclick="event.stopPropagation();deleteRound('${r.id}')" style="font-size:11px;padding:3px 8px;">Delete</button>` : ''}
-          <span class="history-expand">▼</span>
+        <div class="history-body" id="hbody-${r.id}">
+          <div class="loading">Loading…</div>
         </div>
       </div>
-      <div class="history-body" id="hbody-${r.id}">
-        <div class="loading">Loading…</div>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+
+  // Auto-open deep-linked round
+  if (_pendingRoundOpen) {
+    const el = document.getElementById('hcard-' + _pendingRoundOpen);
+    if (el) {
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        toggleHistoryCard(_pendingRoundOpen, el);
+      }, 100);
+    }
+    _pendingRoundOpen = null;
+  }
+}
+
+function shareRound(roundId) {
+  const url = `${window.location.origin}${window.location.pathname}?round=${roundId}`;
+  navigator.clipboard.writeText(url).then(() => toast('Round link copied!'));
 }
 
 async function toggleHistoryCard(roundId, el) {
