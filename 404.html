@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script>
+  // GitHub Pages SPA routing trick.
+  // When someone navigates directly to /round, /teams, /guide, etc.,
+  // GitHub returns this 404. We capture the path and bounce to /?p=<slug>
+  // preserving any query params (e.g. /history?round=<uuid> → /?p=history&round=<uuid>).
+  var l = window.location;
+  var slug = l.pathname.replace(/^\//, '').split('/')[0];
+  var qs   = l.search ? l.search.slice(1) : '';
+  var dest = l.protocol + '//' + l.host + '/?p=' + encodeURIComponent(slug) + (qs ? '&' + qs : '') + l.hash;
+  l.replace(dest);
+</script>
