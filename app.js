@@ -1947,7 +1947,7 @@ function renderTiebreaker(tiedTeams, winningTeams) {
       html += `
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="tag" style="background:${color}22;color:${color};font-size:13px;">Team ${team}</span>
-          <input type="number" inputmode="decimal" min="1" max="20" ${disabled}
+          <input type="number" inputmode="decimal" min="-20" max="20" ${disabled}
             style="width:60px;height:44px;text-align:center;font-size:22px;font-family:'DM Mono',monospace;font-weight:500;border:2px solid ${score !== undefined && isWinnerHole ? 'var(--gold)' : 'var(--border)'};border-radius:8px;background:var(--warm-white);"
             value="${score !== undefined ? score : ''}"
             oninput="updateTiebreakerScore('${team}', ${h}, this.value)">
