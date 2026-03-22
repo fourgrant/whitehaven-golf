@@ -345,9 +345,11 @@
     <div class="card">
       <h2>Overview</h2>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
-        Whitehaven runs a 9-hole shambles format. Each week follows four steps: set up the round, assign teams, enter scores, then finalize. The active round auto-saves in your browser at every step — safe to close and reopen before finalizing.
+        Whitehaven runs a 9-hole shambles format. Each week follows five steps: send the RSVP link, set up the round, build teams, enter scores, then finalize. Scores and round state auto-save to the cloud as you work — safe to close and reopen at any point.
       </p>
       <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span class="tag">0 RSVP</span>
+        <span style="color:var(--text-muted);font-size:18px;">→</span>
         <span class="tag">1 Round</span>
         <span style="color:var(--text-muted);font-size:18px;">→</span>
         <span class="tag">2 Teams</span>
@@ -355,6 +357,28 @@
         <span class="tag">3 Scores</span>
         <span style="color:var(--text-muted);font-size:18px;">→</span>
         <span class="tag gold">4 Finalize</span>
+      </div>
+    </div>
+
+    <!-- Step 0: RSVP -->
+    <div class="card">
+      <h2>📋 Step 0 — Send the RSVP Link</h2>
+      <div class="section-label" style="margin-top:0;">Before round day</div>
+      <ol style="padding-left:20px;font-size:14px;line-height:2;">
+        <li>Go to the <strong>Round</strong> tab and save the round (date, course, buy-in).</li>
+        <li>A green <strong>RSVP Link</strong> card appears — click <strong>Copy Link</strong> and paste it into the group chat.</li>
+        <li>Players open the link, pick their name from the dropdown, and submit. The link automatically closes after midnight the night before the round.</li>
+      </ol>
+      <div class="section-label">On round day</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        Go to the <strong>Teams</strong> tab. An <strong>RSVPs</strong> card at the top shows everyone who committed. You have two options:
+      </p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
+        <li><strong>Import RSVPs</strong> — checks in every RSVP'd player with one click.</li>
+        <li><strong>Copy List</strong> — copies a numbered list of names and contacts formatted for a group text (e.g. to confirm headcount before you arrive).</li>
+      </ul>
+      <div style="padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">First-time players</strong> — if a player doesn't have an email/phone on file, the RSVP form asks for it and saves it automatically. Next time they RSVP, those fields are skipped.
       </div>
     </div>
 
@@ -395,15 +419,18 @@
     <div class="card">
       <h2>👥 Step 2 — Teams Tab</h2>
       <div class="section-label" style="margin-top:0;">Check in players</div>
-      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        Check the box next to every player who showed up. Only active players appear in this list — manage the roster on the <strong>Players</strong> tab.
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        If you used the RSVP link, click <strong>Import RSVPs</strong> at the top to check everyone in at once. Otherwise, tap each player's name to check them in manually. Only active players appear — manage the roster on the <strong>Players</strong> tab.
+      </p>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+        You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread.
       </p>
       <div class="section-label">Assign teams</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
         You have two options:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
-        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to let the app split players into even teams based on scoring averages. Best for most weeks.</li>
+        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Best for most weeks.</li>
         <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want specific pairings.</li>
       </ul>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
@@ -420,12 +447,17 @@
 
       <div class="section-label" style="margin-top:0;">Individual scores</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        Enter each player's total stroke count for the 9 holes in the field next to their name. These are used to update <strong>player scoring averages</strong> — they do not determine the winning team.
+        Enter each player's total stroke count for the 9 holes in the field next to their name. These are used to update <strong>player scoring averages</strong> — they do not determine the winning team. Scores auto-save to the cloud as you type (no Save button needed).
       </p>
 
       <div class="section-label">Team shamble score</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        At the top of each team card there is a <strong>gold-bordered box</strong> — this is where you enter the team's combined shamble score. The team with the <em>lowest</em> score wins the team pot. Enter this manually (it's the actual shamble result from the course, not calculated from individual scores).
+        At the top of each team card there is a <strong>gold-bordered box</strong> — this is where you enter the team's combined shamble score. The team with the <em>lowest</em> score wins the team pot. Enter this manually (it's the actual shamble result from the course, not calculated from individual scores). Team scores also auto-save.
+      </p>
+
+      <div class="section-label">Tiebreaker</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        If two or more teams end up with the same shamble score, a <strong>Tiebreaker</strong> card appears automatically. Enter each tied team's score on hole 9 — lowest wins. If still tied, hole 8 appears, then hole 7, and so on until a winner is determined. Golf scores (including negatives) are supported. The tiebreaker result is saved and shown in the round's History card.
       </p>
 
       <div class="section-label">Skins</div>
@@ -442,7 +474,7 @@
       </p>
 
       <div style="margin-top:16px;padding:12px 14px;background:#fdf3d8;border-radius:8px;border:1px solid #e8c97a;font-size:13px;line-height:1.6;">
-        <strong>The payout table updates live</strong> as you enter scores, skins, and CTH winners. No need to save — just keep entering data and the numbers will reflect correctly.
+        <strong>Everything auto-saves.</strong> Scores, team totals, skins, CTPs, and tiebreaker data all save to the cloud as you enter them. You can close the app mid-round and pick up exactly where you left off. The payout table also updates live.
       </div>
     </div>
 
@@ -483,6 +515,7 @@
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
         <li><strong>Add player</strong> — type their name and click Add. They'll appear at check-in immediately.</li>
+        <li><strong>Edit contact info</strong> — click <em>Edit</em> next to any player to set or update their email and phone number. This is the info used for RSVP pre-fill and email reminders. Players who've RSVP'd at least once will already have this on file.</li>
         <li><strong>Deactivate</strong> — players sitting out the season can be deactivated so they don't clutter the check-in list. Their history and averages are preserved.</li>
         <li><strong>Reactivate</strong> — bring them back at any time with one click.</li>
       </ul>
@@ -512,7 +545,11 @@
         <tbody>
           <tr>
             <td style="font-size:13px;">What if I close the browser mid-round?</td>
-            <td style="font-size:13px;color:var(--text-muted);">The active round is auto-saved locally. Reopen the app and continue from where you left off.</td>
+            <td style="font-size:13px;color:var(--text-muted);">Everything auto-saves to the cloud as you enter it. Reopen the app on any device and continue exactly where you left off.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">Two teams are tied — now what?</td>
+            <td style="font-size:13px;color:var(--text-muted);">A Tiebreaker card appears automatically. Enter hole 9 scores for each tied team — lowest wins. If still tied, hole 8 appears, then 7, etc. Negative scores are fine.</td>
           </tr>
           <tr>
             <td style="font-size:13px;">What if nobody wins a skin?</td>
@@ -527,12 +564,20 @@
             <td style="font-size:13px;color:var(--text-muted);">Team score (gold box) is the shamble result — it determines the winner. Individual scores feed each player's personal average.</td>
           </tr>
           <tr>
+            <td style="font-size:13px;">How do I share a specific round result?</td>
+            <td style="font-size:13px;color:var(--text-muted);">Click the 🔗 button on any History card to copy a direct link to that round. Opening it takes anyone straight to the expanded results.</td>
+          </tr>
+          <tr>
             <td style="font-size:13px;">Which holes are par 3s?</td>
             <td style="font-size:13px;color:var(--text-muted);">Holes 2 and 5. CTH is only contested on these two holes.</td>
           </tr>
           <tr>
             <td style="font-size:13px;">How much does each CTH winner get?</td>
             <td style="font-size:13px;color:var(--text-muted);">$1 × number of players checked in, drawn from the $2-per-player CTH pool.</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;">How do I update a player's email or phone?</td>
+            <td style="font-size:13px;color:var(--text-muted);">Go to the Players tab, find the player, and click Edit. Players who've RSVP'd before already have their info saved.</td>
           </tr>
         </tbody>
       </table>
