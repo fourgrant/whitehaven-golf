@@ -1484,7 +1484,7 @@ async function renderSuperlatives() {
   const ctpPodium = buildPodium(ctpSorted, p => p.total);
 
   grid.innerHTML = [
-    podiumTile('🏌️', 'Best Round',     bestRoundPodium, p => p.score),
+    podiumTile('🏌️', 'Best Round',     bestRoundPodium, p => p.score, { winnersOnly: true }),
     podiumTile('💰', 'Most Winnings',  moneyPodium,     p => `$${p.total.toFixed(2)}`),
     podiumTile('🏆', 'Most Wins',      winsPodium,      p => `${p.total} win${p.total !== 1 ? 's' : ''}`),
     podiumTile('🦴', 'Most Skins',     skinsPodium,     p => `${p.total} skin${p.total !== 1 ? 's' : ''}`),
@@ -1507,7 +1507,7 @@ function buildPodium(sorted, getVal, ascending = false) {
   return places;
 }
 
-function podiumTile(icon, label, places, formatVal) {
+function podiumTile(icon, label, places, formatVal, opts = {}) {
   if (!places.length) return `
     <div class="superlative-tile">
       <div class="superlative-icon">${icon}</div>
@@ -1516,12 +1516,10 @@ function podiumTile(icon, label, places, formatVal) {
     </div>
   `;
 
-  const first    = places[0];
-  const firstName = first.names.length > 3
-    ? `${first.names.slice(0, 2).join(', ')} +${first.names.length - 2}`
-    : first.names.join(', ');
+  const first     = places[0];
+  const firstName = first.names.join(', ');
 
-  const podiumRows = places.slice(1).map((p, i) => {
+  const podiumRows = opts.winnersOnly ? '' : places.slice(1).map((p, i) => {
     const num   = i + 2;
     const pname = p.names.join(', ');
     return `
