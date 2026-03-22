@@ -138,11 +138,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.currentRoundId) await loadCurrentRound();
   renderNav();
 
-  // Check for deep-linked round: ?round=<uuid>
-  const deepRound = new URLSearchParams(window.location.search).get('round');
+  // Resolve target page from URL:
+  //  - /?p=<slug>       → redirected here by 404.html (direct navigation to /round, /guide, etc.)
+  //  - /round, /guide   → pathname slug (when replaceState put it there and user refreshes)
+  //  - /?round=<uuid>   → legacy deep link; also emitted by 404.html for /history?round=<uuid>
+  const params    = new URLSearchParams(window.location.search);
+  const deepRound = params.get('round');
+  const pSlug     = params.get('p') || window.location.pathname.replace(/^\//, '').split('/')[0];
+  const pageFromSlug = SLUG_PAGES[pSlug];
+
   if (deepRound) {
     _pendingRoundOpen = deepRound;
     showPage('history');
+    return;
+  }
+
+  if (pageFromSlug) {
+    showPage(pageFromSlug);
     return;
   }
 
@@ -232,12 +244,20 @@ function renderNav() {
   }
 }
 
+// Maps internal page ids → URL slugs (and back)
+const PAGE_SLUGS = { round:'round', teams:'teams', scores:'scores', players:'players', stats:'stats', history:'history', howto:'guide' };
+const SLUG_PAGES = Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v]) => [v,k]));
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button[data-page]').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   const btn = document.querySelector(`nav button[data-page="${id}"]`);
   if (btn) btn.classList.add('active');
+
+  // Update the browser URL to the clean slug (e.g. /guide, /round)
+  const slug = PAGE_SLUGS[id] || id;
+  history.replaceState({}, '', '/' + slug);
 
   if (id === 'round')   renderRoundPage();
   if (id === 'teams')   renderTeamsPage();
