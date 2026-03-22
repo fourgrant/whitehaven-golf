@@ -1826,6 +1826,8 @@ async function renderRsvpSummary() {
     return;
   }
 
+  state._rsvps = rsvps; // cache for copyRsvpList()
+
   content.innerHTML = `
     <table class="lb-table" style="margin-top:8px;">
       <thead>
@@ -1848,6 +1850,19 @@ async function renderRsvpSummary() {
     <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:8px;">${rsvps.length} RSVP${rsvps.length !== 1 ? 's' : ''}</div>
   `;
   card.style.display = '';
+}
+
+function copyRsvpList() {
+  const rsvps = state._rsvps;
+  if (!rsvps || !rsvps.length) { toast('No RSVPs to copy.'); return; }
+  const r = state.currentRound;
+  const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const lines = [
+    `RSVPs — ${r.course} · ${dateStr}`,
+    ...rsvps.map((p, i) => `${i + 1}. ${p.name}`),
+    `(${rsvps.length} player${rsvps.length !== 1 ? 's' : ''})`,
+  ];
+  navigator.clipboard.writeText(lines.join('\n')).then(() => toast('RSVP list copied!'));
 }
 
 async function importRsvps() {

@@ -84,6 +84,8 @@ async function main() {
     return;
   }
 
+  let totalFailures = 0;
+
   for (const round of rounds) {
     console.log(`Processing round ${round.id} at ${round.course} on ${round.date}`);
 
@@ -100,6 +102,7 @@ async function main() {
       weekday: 'long', month: 'long', day: 'numeric',
     });
 
+    let failures = 0;
     for (const rsvp of rsvps) {
       const html = `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
@@ -122,12 +125,19 @@ async function main() {
       if (result.status === 200 || result.status === 201) {
         console.log(`  ✓ Sent to ${rsvp.email}`);
       } else {
-        console.error(`  ✗ Failed for ${rsvp.email}:`, result.body);
+        console.error(`  ✗ Failed for ${rsvp.email}:`, JSON.stringify(result.body));
+        failures++;
+        totalFailures++;
       }
+    }
+
+    if (failures > 0) {
+      console.error(`  ${failures} email(s) failed for round ${round.id}`);
     }
   }
 
   console.log('Done.');
+  if (totalFailures > 0) process.exit(1);
 }
 
 main().catch(err => {
