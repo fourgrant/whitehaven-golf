@@ -1389,27 +1389,25 @@ const LEADERBOARD_MIN_ROUNDS = 5;
 
 // ===== SEASON SUPERLATIVES =====
 async function renderSuperlatives() {
-  const grid = document.getElementById('superlatives-grid');
+  const grid  = document.getElementById('superlatives-grid');
   const title = document.getElementById('superlatives-title');
   if (!grid) return;
 
   const year = new Date().getFullYear();
-  if (title) title.textContent = `${year} Season Awards`;
+  if (title) title.textContent = `${year} Leaderboard`;
   if (!db) { grid.innerHTML = ''; return; }
 
   const yearStart = `${year}-01-01`;
 
-  // Get all completed round IDs for this year
   const { data: yearRounds } = await db.from('rounds')
     .select('id').eq('status', 'complete').gte('date', yearStart);
   const roundIds = (yearRounds || []).map(r => r.id);
 
   if (!roundIds.length) {
-    grid.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;grid-column:1/-1;">No rounds completed yet in ${year}. Check back after the first round!</p>`;
+    grid.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;grid-column:1/-1;">No rounds completed yet in ${year}.</p>`;
     return;
   }
 
-  // Fetch all needed data in parallel
   const [
     { data: rpScores },
     { data: results },
@@ -1417,68 +1415,113 @@ async function renderSuperlatives() {
     { data: rpCtps },
   ] = await Promise.all([
     db.from('round_players').select('score, player_id, players(name)').in('round_id', roundIds).not('score', 'is', null),
-    db.from('round_results').select('player_id, total_winnings, players(name)').in('round_id', roundIds),
+    db.from('round_results').select('player_id, total_winnings, team_winnings, players(name)').in('round_id', roundIds),
     db.from('round_players').select('player_id, holes_won, players(name)').in('round_id', roundIds),
     db.from('round_players').select('player_id, cth_count, players(name)').in('round_id', roundIds),
   ]);
 
-  // Best individual score (lowest) — allow ties
+  // Best individual score — sorted ascending (lower = better), grouped by score value
   const allScores = (rpScores || []).map(r => ({ name: r.players?.name, score: r.score })).filter(r => r.score > 0);
   allScores.sort((a, b) => a.score - b.score);
-  const bestScore = allScores[0]?.score;
-  const bestRoundTied = bestScore != null ? allScores.filter(r => r.score === bestScore) : [];
+  const bestRoundPodium = buildPodium(allScores, p => p.score, true); // ascending
 
-  // Most money (no ties shown per spec)
+  // Most money
   const moneyMap = {};
   (results || []).forEach(r => {
-    const key = r.player_id;
-    if (!moneyMap[key]) moneyMap[key] = { name: r.players?.name, total: 0 };
-    moneyMap[key].total += parseFloat(r.total_winnings || 0);
+    if (!moneyMap[r.player_id]) moneyMap[r.player_id] = { name: r.players?.name, total: 0 };
+    moneyMap[r.player_id].total += parseFloat(r.total_winnings || 0);
   });
-  const topMoney = Object.values(moneyMap).sort((a, b) => b.total - a.total)[0];
+  const moneySorted = Object.values(moneyMap).sort((a, b) => b.total - a.total);
+  const moneyPodium = buildPodium(moneySorted, p => p.total);
 
-  // Most skins (holes won) — allow ties
+  // Most wins (rounds where team_winnings > 0)
+  const winsMap = {};
+  (results || []).forEach(r => {
+    if (parseFloat(r.team_winnings || 0) > 0) {
+      if (!winsMap[r.player_id]) winsMap[r.player_id] = { name: r.players?.name, total: 0 };
+      winsMap[r.player_id].total++;
+    }
+  });
+  const winsSorted = Object.values(winsMap).sort((a, b) => b.total - a.total);
+  const winsPodium = buildPodium(winsSorted, p => p.total);
+
+  // Most skins
   const skinsMap = {};
   (rpSkins || []).forEach(r => {
-    const key = r.player_id;
-    if (!skinsMap[key]) skinsMap[key] = { name: r.players?.name, total: 0 };
-    skinsMap[key].total += (r.holes_won || 0);
+    if (!skinsMap[r.player_id]) skinsMap[r.player_id] = { name: r.players?.name, total: 0 };
+    skinsMap[r.player_id].total += (r.holes_won || 0);
   });
   const skinsSorted = Object.values(skinsMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
-  const topSkinsVal = skinsSorted[0]?.total;
-  const topSkinsTied = topSkinsVal != null ? skinsSorted.filter(p => p.total === topSkinsVal) : [];
+  const skinsPodium = buildPodium(skinsSorted, p => p.total);
 
-  // Most CTPs — allow ties
+  // Most CTPs
   const ctpMap = {};
   (rpCtps || []).forEach(r => {
-    const key = r.player_id;
-    if (!ctpMap[key]) ctpMap[key] = { name: r.players?.name, total: 0 };
-    ctpMap[key].total += (r.cth_count || 0);
+    if (!ctpMap[r.player_id]) ctpMap[r.player_id] = { name: r.players?.name, total: 0 };
+    ctpMap[r.player_id].total += (r.cth_count || 0);
   });
   const ctpSorted = Object.values(ctpMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
-  const topCtpVal = ctpSorted[0]?.total;
-  const topCtpTied = topCtpVal != null ? ctpSorted.filter(p => p.total === topCtpVal) : [];
+  const ctpPodium = buildPodium(ctpSorted, p => p.total);
 
-  const tile = (icon, label, tied, value) => tied.length ? `
+  grid.innerHTML = [
+    podiumTile('🏌️', 'Best Round',     bestRoundPodium, p => p.score),
+    podiumTile('💰', 'Most Winnings',  moneyPodium,     p => `$${p.total.toFixed(2)}`),
+    podiumTile('🏆', 'Most Wins',      winsPodium,      p => `${p.total} win${p.total !== 1 ? 's' : ''}`),
+    podiumTile('🦴', 'Most Skins',     skinsPodium,     p => `${p.total} skin${p.total !== 1 ? 's' : ''}`),
+    podiumTile('📍', 'Most CTPs',      ctpPodium,       p => `${p.total} CTP${p.total !== 1 ? 's' : ''}`),
+  ].join('');
+}
+
+// Groups sorted entries into [{place, names, value}, ...] up to 3 podium positions
+function buildPodium(sorted, getVal, ascending = false) {
+  const places = [];
+  const seen   = new Set();
+  for (const item of sorted) {
+    const v = getVal(item);
+    if (seen.has(v)) continue;
+    seen.add(v);
+    const tied = sorted.filter(x => getVal(x) === v);
+    places.push({ names: tied.map(x => x.name), value: v, raw: tied[0] });
+    if (places.length === 3) break;
+  }
+  return places;
+}
+
+function podiumTile(icon, label, places, formatVal) {
+  if (!places.length) return `
     <div class="superlative-tile">
       <div class="superlative-icon">${icon}</div>
       <div class="superlative-label">${label}</div>
-      <div class="superlative-name">${tied.map(p => p.name).join(', ')}</div>
-      <div class="superlative-value">${value}</div>
-    </div>
-  ` : `
-    <div class="superlative-tile superlative-empty">
-      <div class="superlative-icon">${icon}</div>
-      <div class="superlative-label">${label}</div>
-      <div class="superlative-name" style="color:var(--text-muted);font-weight:400;">—</div>
+      <div class="superlative-name" style="color:var(--text-muted);font-weight:400;font-size:13px;">—</div>
     </div>
   `;
 
-  grid.innerHTML =
-    tile('🏌️', 'Best Round', bestRoundTied, bestScore) +
-    tile('💰', 'Most Winnings', topMoney ? [topMoney] : [], topMoney ? `$${topMoney.total.toFixed(2)}` : '') +
-    tile('🦴', 'Most Skins', topSkinsTied, topSkinsVal != null ? `${topSkinsVal} hole${topSkinsVal !== 1 ? 's' : ''}` : '') +
-    tile('📍', 'Most CTPs', topCtpTied, topCtpVal != null ? `${topCtpVal} CTP${topCtpVal !== 1 ? 's' : ''}` : '');
+  const first    = places[0];
+  const firstName = first.names.length > 2
+    ? `${first.names[0]} +${first.names.length - 1}`
+    : first.names.join(', ');
+
+  const podiumRows = places.slice(1).map((p, i) => {
+    const num   = i + 2;
+    const pname = p.names.length > 1 ? `${p.names[0]} +${p.names.length - 1}` : p.names[0];
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:5px;">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0;">${num}</span>
+        <span style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px;">${pname}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);flex-shrink:0;">${formatVal(p.raw)}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="superlative-tile">
+      <div class="superlative-icon">${icon}</div>
+      <div class="superlative-label">${label}</div>
+      <div class="superlative-name">${firstName}</div>
+      <div class="superlative-value">${formatVal(first.raw)}</div>
+      ${podiumRows ? `<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:6px;">${podiumRows}</div>` : ''}
+    </div>
+  `;
 }
 
 async function renderLastRoundCallout() {
