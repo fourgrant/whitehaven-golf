@@ -5,6 +5,7 @@
 
 let db;
 let currentRound = null;
+let playersMap   = {}; // id -> player object (includes email/phone)
 
 function initRsvpPage() {
   try {
@@ -39,7 +40,7 @@ async function loadRoundAndPlayers(roundId) {
     return;
   }
 
-  // Check cutoff: reject if round date is today or earlier (cutoff = midnight before round day)
+  // Check cutoff: reject if round date is today or earlier
   const today = new Date().toISOString().split('T')[0];
   if (round.date <= today) {
     show('rsvp-closed');
@@ -58,10 +59,16 @@ async function loadRoundAndPlayers(roundId) {
   const { count } = await db.from('rsvps').select('id', { count: 'exact', head: true }).eq('round_id', roundId);
   document.getElementById('rsvp-count-display').textContent = `${count ?? 0} RSVP${count !== 1 ? 's' : ''} so far`;
 
-  // Load players for dropdown
-  const { data: players } = await db.from('players').select('id, name').eq('active', true).order('name');
+  // Load players (include email + phone for smart pre-fill)
+  const { data: players } = await db
+    .from('players')
+    .select('id, name, email, phone')
+    .eq('active', true)
+    .order('name');
+
   const sel = document.getElementById('rsvp-player-select');
   (players || []).forEach(p => {
+    playersMap[p.id] = p;
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = p.name;
@@ -77,14 +84,33 @@ async function loadRoundAndPlayers(roundId) {
 }
 
 function handlePlayerSelectChange() {
-  const val = document.getElementById('rsvp-player-select').value;
-  const newNameGroup = document.getElementById('new-name-group');
-  if (val === '__new__') {
-    newNameGroup.style.display = '';
+  const val    = document.getElementById('rsvp-player-select').value;
+  const player = playersMap[val];
+
+  // New name field
+  document.getElementById('new-name-group').style.display = val === '__new__' ? '' : 'none';
+  if (val !== '__new__') document.getElementById('rsvp-new-name').value = '';
+
+  const emailGroup = document.getElementById('email-group');
+  const phoneGroup = document.getElementById('phone-group');
+  const onFileNote = document.getElementById('contact-on-file');
+
+  if (player && player.email && player.phone) {
+    // Contact already on file — hide fields, show note
+    emailGroup.style.display = 'none';
+    phoneGroup.style.display = 'none';
+    onFileNote.style.display = '';
+    onFileNote.textContent   = `📋 Using ${player.email} · ${player.phone}`;
   } else {
-    newNameGroup.style.display = 'none';
-    document.getElementById('rsvp-new-name').value = '';
+    // Need to collect contact info
+    emailGroup.style.display = '';
+    phoneGroup.style.display = '';
+    onFileNote.style.display = 'none';
+    // Pre-fill whatever we do have
+    if (player?.email) document.getElementById('rsvp-email').value = player.email;
+    if (player?.phone) document.getElementById('rsvp-phone').value = player.phone;
   }
+
   clearError();
 }
 
@@ -92,34 +118,33 @@ async function submitRsvp() {
   clearError();
 
   const playerSelect = document.getElementById('rsvp-player-select').value;
-  const newName = document.getElementById('rsvp-new-name').value.trim();
-  const email = document.getElementById('rsvp-email').value.trim();
-  const phone = document.getElementById('rsvp-phone').value.trim();
+  const newName      = document.getElementById('rsvp-new-name').value.trim();
+  const player       = playersMap[playerSelect];
+  const hasContact   = player?.email && player?.phone;
+
+  const emailEl = document.getElementById('rsvp-email');
+  const phoneEl = document.getElementById('rsvp-phone');
+  const email   = hasContact ? player.email : emailEl.value.trim();
+  const phone   = hasContact ? player.phone : phoneEl.value.trim();
 
   // Validation
-  if (!playerSelect) { showError('Please select your name.'); return; }
-  if (playerSelect === '__new__' && !newName) { showError('Please enter your full name.'); return; }
-  if (!email || !email.includes('@')) { showError('Please enter a valid email address.'); return; }
-  if (!phone) { showError('Please enter your phone number.'); return; }
+  if (!playerSelect)                                  { showError('Please select your name.'); return; }
+  if (playerSelect === '__new__' && !newName)          { showError('Please enter your full name.'); return; }
+  if (!hasContact && (!email || !email.includes('@'))) { showError('Please enter a valid email address.'); return; }
+  if (!hasContact && !phone)                           { showError('Please enter your phone number.'); return; }
 
   const btn = document.querySelector('button[onclick="submitRsvp()"]');
   btn.disabled = true;
   btn.textContent = 'Submitting…';
 
-  let playerId = playerSelect === '__new__' ? null : playerSelect;
-  let displayName = newName;
-
-  // If existing player, get their name for the success message
-  if (playerId) {
-    const opt = document.querySelector(`#rsvp-player-select option[value="${playerId}"]`);
-    displayName = opt ? opt.textContent : 'You';
-  }
+  let playerId    = playerSelect === '__new__' ? null : playerSelect;
+  let displayName = player ? player.name : newName;
 
   // Upsert new player if needed
   if (playerSelect === '__new__' && newName) {
     const { data: newPlayer, error: playerError } = await db
       .from('players')
-      .upsert({ name: newName, avg_score: 40, rounds_played: 0 }, { onConflict: 'name' })
+      .upsert({ name: newName, avg_score: 40, rounds_played: 0, email, phone }, { onConflict: 'name' })
       .select('id')
       .single();
 
@@ -129,21 +154,24 @@ async function submitRsvp() {
       btn.textContent = 'RSVP for This Round →';
       return;
     }
-    playerId = newPlayer.id;
+    playerId    = newPlayer.id;
+    displayName = newName;
+  } else if (playerId && !hasContact) {
+    // Save contact info back to this player for next time
+    await db.from('players').update({ email, phone }).eq('id', playerId);
   }
 
   // Insert RSVP
   const { error: rsvpError } = await db.from('rsvps').insert({
-    round_id: currentRound.id,
+    round_id:  currentRound.id,
     player_id: playerId,
-    name: displayName,
+    name:      displayName,
     email,
     phone,
   });
 
   if (rsvpError) {
     if (rsvpError.code === '23505') {
-      // Duplicate — already RSVPd with this email
       hide('rsvp-main');
       show('rsvp-success');
       document.getElementById('success-title').textContent = 'Already RSVPd!';
