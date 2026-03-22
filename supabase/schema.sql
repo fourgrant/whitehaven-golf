@@ -143,3 +143,23 @@ INSERT INTO players (name, avg_score, rounds_played) VALUES
 ('Colin', 44.0, 1),
 ('Sam G.', 44.0, 7)
 ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================
+-- RSVPS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS rsvps (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  round_id   uuid NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+  player_id  uuid REFERENCES players(id) ON DELETE SET NULL,
+  name       text NOT NULL,
+  email      text NOT NULL,
+  phone      text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(round_id, email)
+);
+
+ALTER TABLE rsvps ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read"  ON rsvps FOR SELECT USING (true);
+CREATE POLICY "Public write" ON rsvps FOR ALL    USING (true);
+CREATE INDEX IF NOT EXISTS idx_rsvps_round_id ON rsvps(round_id);

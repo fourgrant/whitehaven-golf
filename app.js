@@ -272,6 +272,7 @@ function renderRoundPage() {
     document.getElementById('round-badge-text').textContent = `Editing: ${r.date} at ${r.course}`;
     document.getElementById('round-active-badge').style.display = 'block';
     document.getElementById('clear-round-btn').style.display = '';
+    showRsvpLink(r.id);
   } else {
     document.getElementById('round-date').value     = today;
     document.getElementById('round-course').value   = 'Whitehaven';
@@ -327,6 +328,7 @@ async function saveRound() {
   state.currentRound  = result.data;
   state.currentRoundId = result.data.id;
   localStorage.setItem('whg_round_id', result.data.id);
+  showRsvpLink(result.data.id);
   toast('Round saved! Assign players to teams.');
   showPage('teams');
 }
@@ -369,6 +371,7 @@ async function renderTeamsPage() {
   }
   renderPlayerAssignList();
   renderTeamPreview();
+  if (state.isCommish && state.currentRound) renderRsvpSummary();
 }
 
 function renderPlayerAssignList() {
@@ -1788,6 +1791,89 @@ async function loadHistoryRoundData(roundId, container) {
   }
 
   container.innerHTML = html;
+}
+
+// ===== RSVP =====
+function showRsvpLink(roundId) {
+  const section = document.getElementById('rsvp-link-section');
+  if (!section) return;
+  const url = `${window.location.origin}/rsvp.html?round=${roundId}`;
+  document.getElementById('rsvp-link-text').textContent = url;
+  section.style.display = '';
+}
+
+function copyRsvpLink() {
+  const url = document.getElementById('rsvp-link-text').textContent;
+  navigator.clipboard.writeText(url).then(() => toast('RSVP link copied!'));
+}
+
+async function renderRsvpSummary() {
+  const card = document.getElementById('rsvp-summary-card');
+  const content = document.getElementById('rsvp-list-content');
+  if (!card || !content || !db) return;
+
+  const { data: rsvps, error } = await db
+    .from('rsvps')
+    .select('name, email, phone, created_at')
+    .eq('round_id', state.currentRound.id)
+    .order('created_at');
+
+  if (error) { content.textContent = 'Error loading RSVPs.'; card.style.display = ''; return; }
+
+  if (!rsvps || !rsvps.length) {
+    content.innerHTML = '<span style="color:var(--text-muted);">No RSVPs yet.</span>';
+    card.style.display = '';
+    return;
+  }
+
+  content.innerHTML = `
+    <table class="lb-table" style="margin-top:8px;">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rsvps.map(r => `
+          <tr>
+            <td style="font-weight:500">${r.name}</td>
+            <td style="font-family:'DM Mono',monospace;font-size:12px;">${r.email}</td>
+            <td style="font-family:'DM Mono',monospace;font-size:12px;">${r.phone}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:8px;">${rsvps.length} RSVP${rsvps.length !== 1 ? 's' : ''}</div>
+  `;
+  card.style.display = '';
+}
+
+async function importRsvps() {
+  if (!db || !state.currentRound) return;
+
+  const { data: rsvps, error } = await db
+    .from('rsvps')
+    .select('player_id')
+    .eq('round_id', state.currentRound.id);
+
+  if (error) { toast('Error loading RSVPs.'); return; }
+  if (!rsvps || !rsvps.length) { toast('No RSVPs to import.'); return; }
+
+  let imported = 0;
+  rsvps.forEach(r => {
+    if (r.player_id && state.players.find(p => p.id === r.player_id)) {
+      state.checkedIn.add(r.player_id);
+      if (!state.teamAssignments[r.player_id]) state.teamAssignments[r.player_id] = '';
+      imported++;
+    }
+  });
+
+  renderPlayerAssignList();
+  renderTeamPreview();
+  updateCalc();
+  toast(`Imported ${imported} RSVP${imported !== 1 ? 's' : ''} as checked in.`);
 }
 
 // ===== UTIL =====

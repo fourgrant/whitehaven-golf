@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSVP — Whitehaven Golf League</title>
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="rsvp-header">⛳ Whitehaven Golf League</div>
+
+<div class="rsvp-body">
+
+  <div id="rsvp-loading" class="card" style="text-align:center;padding:40px 24px;">
+    <div class="loading">Loading round info…</div>
+  </div>
+
+  <div id="rsvp-closed" class="card" style="display:none;text-align:center;padding:40px 24px;">
+    <div style="font-size:48px;margin-bottom:16px;">⛔</div>
+    <h2 style="font-family:'Playfair Display',serif;margin-bottom:8px;">RSVPs Closed</h2>
+    <p style="color:var(--text-muted);font-size:14px;">The RSVP window for this round has passed.</p>
+  </div>
+
+  <div id="rsvp-not-found" class="card" style="display:none;text-align:center;padding:40px 24px;">
+    <div style="font-size:48px;margin-bottom:16px;">🔍</div>
+    <h2 style="font-family:'Playfair Display',serif;margin-bottom:8px;">Round Not Found</h2>
+    <p style="color:var(--text-muted);font-size:14px;">This RSVP link may be invalid or expired.</p>
+  </div>
+
+  <div id="rsvp-success" class="card" style="display:none;text-align:center;padding:40px 24px;">
+    <div style="font-size:48px;margin-bottom:16px;">⛳</div>
+    <h2 style="font-family:'Playfair Display',serif;margin-bottom:8px;" id="success-title">You're in!</h2>
+    <p style="color:var(--text-muted);font-size:14px;" id="success-detail">See you on the course.</p>
+  </div>
+
+  <div id="rsvp-main" style="display:none;">
+    <!-- Round info card -->
+    <div class="card">
+      <h2 id="rsvp-course" style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:4px;">—</h2>
+      <div class="rsvp-meta" id="rsvp-date-buyin">—</div>
+      <div style="margin-top:12px;font-family:'DM Mono',monospace;font-size:12px;color:var(--green);font-weight:500;" id="rsvp-count-display">— RSVPs so far</div>
+    </div>
+
+    <!-- RSVP form -->
+    <div class="card">
+      <h2 style="margin-bottom:16px;">RSVP</h2>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Your Name</label>
+        <select id="rsvp-player-select" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--warm-white);appearance:none;-webkit-appearance:none;" onchange="handlePlayerSelectChange()">
+          <option value="">— Select your name</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="new-name-group" style="display:none;margin-bottom:14px;">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Your Full Name</label>
+        <input type="text" id="rsvp-new-name" placeholder="First Last"
+          style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--warm-white);">
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Email</label>
+        <input type="email" id="rsvp-email" placeholder="you@example.com"
+          style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--warm-white);">
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <label style="display:block;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Phone</label>
+        <input type="tel" id="rsvp-phone" placeholder="555-867-5309"
+          style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--warm-white);">
+      </div>
+
+      <div id="rsvp-error" style="display:none;padding:10px 12px;background:#faeaea;border:1px solid #e0b0b0;border-radius:8px;color:var(--red);font-size:13px;margin-bottom:14px;"></div>
+
+      <button class="btn btn-primary" style="width:100%;padding:14px;" onclick="submitRsvp()">RSVP for This Round →</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="rsvp.js"></script>
+
+</body>
+</html>

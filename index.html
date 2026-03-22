@@ -159,6 +159,16 @@
         <button class="btn btn-danger btn-sm" id="clear-round-btn" onclick="clearActiveRound()" style="display:none;">Clear Round</button>
       </div>
     </div>
+
+    <!-- RSVP link card (revealed after round is saved) -->
+    <div class="card" id="rsvp-link-section" style="display:none;">
+      <h2>RSVP Link</h2>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Share this link so players can RSVP before the round. RSVPs close at midnight the night before.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <code id="rsvp-link-text" style="flex:1;font-family:'DM Mono',monospace;font-size:12px;background:var(--warm-white);border:1px solid var(--border);border-radius:6px;padding:8px 12px;word-break:break-all;color:var(--text);"></code>
+        <button class="btn btn-outline btn-sm" onclick="copyRsvpLink()" style="flex-shrink:0;">Copy</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===================================================
@@ -178,6 +188,15 @@
       </div>
     </div>
     <div id="teams-page-content">
+      <!-- RSVP summary (commish only) -->
+      <div class="card commish-only" id="rsvp-summary-card" style="display:none;">
+        <h2 style="margin-bottom:8px;">RSVPs</h2>
+        <div id="rsvp-list-content" style="font-size:13px;color:var(--text-muted);">Loading…</div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-outline btn-sm" onclick="importRsvps()">⬇ Import All as Checked-In</button>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Player Check-In &amp; Team Assignment</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
@@ -186,6 +205,7 @@
             oninput="renderPlayerAssignList()">
           <button class="btn btn-outline btn-sm" onclick="addGuest()">+ Add Guest</button>
           <button class="btn btn-outline btn-sm" onclick="openPasteModal()">📋 Paste List</button>
+          <button class="btn btn-outline btn-sm" onclick="importRsvps()">⬇ Import RSVPs</button>
           <button class="btn btn-outline btn-sm" onclick="autoBalance()">⚖ Auto-Balance</button>
           <span id="teams-player-count" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
         </div>
