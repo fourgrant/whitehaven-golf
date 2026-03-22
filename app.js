@@ -34,9 +34,45 @@ const state = {
   teamScores: JSON.parse(localStorage.getItem('whg_team_scores') || '{}'), // team -> manual score
   holeWinners: {},        // hole# (1-9) -> rpId
   cthWinners: { hole2: null, hole5: null }, // rpId per CTH hole
+  tiebreakerScores: {},   // team -> hole# -> score
   paidIn: new Set(),
   paidOut: new Set(),
 };
+
+// ===== AUTO-SAVE HELPERS =====
+const _debounceTimers = {};
+function debounce(key, fn, ms = 800) {
+  clearTimeout(_debounceTimers[key]);
+  _debounceTimers[key] = setTimeout(fn, ms);
+}
+
+function showSavingStatus() {
+  const el = document.getElementById('autosave-status');
+  if (el) { el.textContent = 'Saving…'; el.style.display = ''; }
+}
+
+function showSavedStatus() {
+  const el = document.getElementById('autosave-status');
+  if (el) {
+    el.textContent = 'Saved ✓';
+    clearTimeout(_debounceTimers['savedHide']);
+    _debounceTimers['savedHide'] = setTimeout(() => { el.style.display = 'none'; }, 2000);
+  }
+}
+
+function saveRoundState() {
+  if (!db || !state.currentRound) return;
+  const roundState = {
+    holeWinners: state.holeWinners,
+    cthWinners: state.cthWinners,
+    tiebreakerScores: state.tiebreakerScores,
+  };
+  showSavingStatus();
+  debounce('roundState', async () => {
+    await db.from('rounds').update({ round_state: roundState }).eq('id', state.currentRound.id);
+    showSavedStatus();
+  });
+}
 
 // ===== SEED DATA (fallback when Supabase not configured) =====
 const SEED_PLAYERS = [
@@ -222,6 +258,19 @@ async function loadCurrentRound() {
     return;
   }
   state.currentRound = data;
+
+  // Restore draft state from DB
+  if (data.round_state) {
+    state.holeWinners      = data.round_state.holeWinners      || {};
+    state.cthWinners       = data.round_state.cthWinners       || { hole2: null, hole5: null };
+    state.tiebreakerScores = data.round_state.tiebreakerScores || {};
+  }
+  // Sync team scores from DB (source of truth over localStorage)
+  if (data.team_scores && Object.keys(data.team_scores).length) {
+    state.teamScores = data.team_scores;
+    localStorage.setItem('whg_team_scores', JSON.stringify(state.teamScores));
+  }
+
   if (data.status !== 'complete') await loadRoundPlayers();
 }
 
@@ -868,6 +917,13 @@ function updateTeamScore(team, val) {
   }
   localStorage.setItem('whg_team_scores', JSON.stringify(state.teamScores));
   calcAndRenderPayouts();
+  if (db && state.currentRound) {
+    showSavingStatus();
+    debounce('teamScores', async () => {
+      await db.from('rounds').update({ team_scores: state.teamScores }).eq('id', state.currentRound.id);
+      showSavedStatus();
+    });
+  }
 }
 
 function getTeamGroupsByRpId() {
@@ -888,7 +944,13 @@ function updateScore(rpId, val) {
   } else {
     delete state.scores[rpId];
   }
-  // Individual scores are for player avg tracking; team score is entered manually
+  if (db && state.currentRound) {
+    showSavingStatus();
+    debounce('score-' + rpId, async () => {
+      await db.from('round_players').update({ score: state.scores[rpId] ?? null }).eq('id', rpId);
+      showSavedStatus();
+    });
+  }
 }
 
 // ===== SKINS / CTH SECTION =====
@@ -947,12 +1009,14 @@ function renderSkinsSection() {
 function setHoleWinner(hole, rpId) {
   if (rpId) state.holeWinners[hole] = rpId;
   else delete state.holeWinners[hole];
+  saveRoundState();
   calcAndRenderPayouts();
 }
 
 function setCTHWinner(hole, rpId) {
   if (hole === 2) state.cthWinners.hole2 = rpId || null;
   if (hole === 5) state.cthWinners.hole5 = rpId || null;
+  saveRoundState();
   calcAndRenderPayouts();
 }
 
@@ -980,8 +1044,20 @@ function calcPayoutData() {
 
   if (!Object.keys(teamScores).length) return null;
 
-  const minScore     = Math.min(...Object.values(teamScores));
-  const winningTeams = Object.entries(teamScores).filter(([, s]) => s === minScore).map(([t]) => t);
+  const minScore = Math.min(...Object.values(teamScores));
+  let winningTeams = Object.entries(teamScores).filter(([, s]) => s === minScore).map(([t]) => t);
+  const tiedTeams = winningTeams.length > 1 ? [...winningTeams] : [];
+
+  // Apply tiebreaker: hole 9 down to 1
+  if (winningTeams.length > 1) {
+    for (let h = 9; h >= 1; h--) {
+      const hScores = winningTeams.map(t => state.tiebreakerScores[t]?.[h]);
+      if (hScores.some(s => s === undefined)) break; // not all entered yet
+      const minH = Math.min(...hScores);
+      const resolved = winningTeams.filter(t => state.tiebreakerScores[t][h] === minH);
+      if (resolved.length < winningTeams.length) { winningTeams = resolved; break; }
+    }
+  }
 
   const n        = state.roundPlayers.length;
   const buyin    = parseFloat(r.buyin_per_player) || 12;
@@ -1007,7 +1083,7 @@ function calcPayoutData() {
   const cthHalfPool = cthPool / 2;
 
   return {
-    teams, teamScores, winningTeams, n, totalPot, cthPool, teamWinPool, skinPool,
+    teams, teamScores, winningTeams, tiedTeams, n, totalPot, cthPool, teamWinPool, skinPool,
     perWin, skinsPerRp, skinValue, cthHalfPool, minScore,
   };
 }
@@ -1040,13 +1116,24 @@ function calcAndRenderPayouts() {
     }
   });
 
+  // Tiebreaker card
+  const tbCard = document.getElementById('tiebreaker-card');
+  if (d.tiedTeams.length > 1) {
+    renderTiebreaker(d.tiedTeams, d.winningTeams);
+  } else if (tbCard) {
+    tbCard.style.display = 'none';
+  }
+
   // Winner banner
   if (banner) {
     banner.classList.add('show');
-    document.getElementById('winner-team-name').textContent =
-      `Team ${d.winningTeams.join(' & ')} Wins! 🏆`;
-    document.getElementById('winner-detail').textContent =
-      `Score: ${d.minScore} — Team win pool: $${d.teamWinPool.toFixed(2)}`;
+    const stillTied = d.tiedTeams.length > 1 && d.winningTeams.length > 1;
+    document.getElementById('winner-team-name').textContent = stillTied
+      ? `Teams ${d.tiedTeams.join(' & ')} — Tied`
+      : `Team ${d.winningTeams.join(' & ')} Wins! 🏆`;
+    document.getElementById('winner-detail').textContent = stillTied
+      ? `Score: ${d.minScore} — Enter tiebreaker below ↓`
+      : `Score: ${d.minScore} — Team win pool: $${d.teamWinPool.toFixed(2)}`;
   }
 
   // Payout card
@@ -1791,6 +1878,84 @@ async function loadHistoryRoundData(roundId, container) {
   }
 
   container.innerHTML = html;
+}
+
+// ===== TIEBREAKER =====
+function renderTiebreaker(tiedTeams, winningTeams) {
+  const card = document.getElementById('tiebreaker-card');
+  const content = document.getElementById('tiebreaker-content');
+  if (!card || !content) return;
+  card.style.display = '';
+
+  const stillTied = winningTeams.length > 1;
+  let html = `<p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;">
+    Teams ${tiedTeams.join(' & ')} are tied at the same score.
+    Enter each team's score per hole starting from hole 9 — lowest score wins.
+  </p>`;
+
+  let teamsInPlay = [...tiedTeams];
+  let resolvedHole = null;
+
+  for (let h = 9; h >= 1; h--) {
+    const scores = teamsInPlay.map(t => ({ team: t, score: state.tiebreakerScores[t]?.[h] }));
+    const allEntered = scores.every(s => s.score !== undefined);
+
+    const isWinnerHole = resolvedHole === null && allEntered && (() => {
+      const min = Math.min(...scores.map(s => s.score));
+      return scores.filter(s => s.score === min).length < scores.length;
+    })();
+
+    html += `
+      <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+        <div class="section-label" style="margin-top:0;margin-bottom:8px;">Hole ${h}${resolvedHole !== null ? ' (not needed)' : ''}</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    `;
+
+    scores.forEach(({ team, score }) => {
+      const color = TEAM_COLORS[team] || 'var(--green)';
+      const disabled = resolvedHole !== null ? 'disabled style="opacity:0.4;"' : '';
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="tag" style="background:${color}22;color:${color};font-size:13px;">Team ${team}</span>
+          <input type="number" inputmode="decimal" min="1" max="20" ${disabled}
+            style="width:60px;height:44px;text-align:center;font-size:22px;font-family:'DM Mono',monospace;font-weight:500;border:2px solid ${score !== undefined && isWinnerHole ? 'var(--gold)' : 'var(--border)'};border-radius:8px;background:var(--warm-white);"
+            value="${score !== undefined ? score : ''}"
+            oninput="updateTiebreakerScore('${team}', ${h}, this.value)">
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    if (allEntered) {
+      const min = Math.min(...scores.map(s => s.score));
+      const winners = scores.filter(s => s.score === min).map(s => s.team);
+      if (winners.length < teamsInPlay.length) {
+        resolvedHole = h;
+        html += `<div style="margin-top:8px;padding:8px 12px;background:#e8f4ec;border-radius:6px;border:1px solid #a8d4b0;font-size:13px;font-weight:600;color:var(--green);">
+          ✓ Team ${winners.join(' & ')} wins hole ${h} — tiebreaker resolved
+        </div>`;
+        teamsInPlay = winners;
+      }
+    }
+
+    html += '</div>';
+    if (!allEntered && resolvedHole === null) break; // don't show holes we can't reach yet
+  }
+
+  content.innerHTML = html;
+}
+
+function updateTiebreakerScore(team, hole, val) {
+  const parsed = parseInt(val);
+  if (!state.tiebreakerScores[team]) state.tiebreakerScores[team] = {};
+  if (!isNaN(parsed)) {
+    state.tiebreakerScores[team][hole] = parsed;
+  } else {
+    delete state.tiebreakerScores[team][hole];
+  }
+  saveRoundState();
+  calcAndRenderPayouts();
 }
 
 // ===== RSVP =====
