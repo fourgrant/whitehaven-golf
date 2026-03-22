@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS players (
   avg_score     numeric DEFAULT 40.0,
   rounds_played integer DEFAULT 0,
   active        boolean NOT NULL DEFAULT true,
+  email         text,
+  phone         text,
   base_avg      numeric,               -- historical avg before app tracking; used as blend seed
   base_rounds   integer NOT NULL DEFAULT 0, -- historical round count before app tracking
   created_at    timestamptz DEFAULT now()

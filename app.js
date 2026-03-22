@@ -1481,64 +1481,75 @@ async function renderSuperlatives() {
     tile('📍', 'Most CTPs', topCtpTied, topCtpVal != null ? `${topCtpVal} CTP${topCtpVal !== 1 ? 's' : ''}` : '');
 }
 
-async function renderUpcomingRound() {
+async function renderLastRoundCallout() {
   const el = document.getElementById('upcoming-callout');
   if (!el || !db) return;
 
-  const today = new Date().toISOString().split('T')[0];
-  const { data } = await db
+  const { data: round } = await db
     .from('rounds')
-    .select('id, date, course, buyin_per_player')
-    .neq('status', 'complete')
-    .gte('date', today)
-    .order('date', { ascending: true })
+    .select('id, date, course, team_scores')
+    .eq('status', 'complete')
+    .order('date', { ascending: false })
     .limit(1)
     .single();
 
-  if (!data) { el.style.display = 'none'; return; }
+  if (!round) { el.style.display = 'none'; return; }
 
-  const dateObj = new Date(data.date + 'T12:00:00');
-  const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  // Fetch winners (players with team_winnings > 0)
+  const { data: winners } = await db
+    .from('round_results')
+    .select('team_winnings, players(name)')
+    .eq('round_id', round.id)
+    .gt('team_winnings', 0);
+
+  const dateObj  = new Date(round.date + 'T12:00:00');
+  const weekday  = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
   const dateLong = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-  const isToday  = data.date === today;
+
+  // Winning team letter + score
+  const scores   = round.team_scores || {};
+  const minScore = Object.values(scores).length ? Math.min(...Object.values(scores)) : null;
+  const winTeams = minScore !== null
+    ? Object.entries(scores).filter(([, s]) => s === minScore).map(([t]) => t)
+    : [];
+  const scoreDisplay = minScore !== null
+    ? (minScore > 0 ? `+${minScore}` : `${minScore}`)
+    : '';
+  const winnerNames = (winners || []).map(w => w.players?.name).filter(Boolean);
 
   el.style.display = '';
   el.innerHTML = `
     <div style="
-      background: var(--green);
-      color: var(--cream);
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 20px;
-      border: 2px solid var(--gold);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
+      background:var(--green);border-radius:12px;padding:20px 24px;margin-bottom:20px;
+      border:2px solid var(--gold);display:flex;align-items:center;
+      justify-content:space-between;gap:16px;flex-wrap:wrap;
     ">
       <div>
         <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">
-          ${isToday ? '⛳ Today' : '⛳ Next Round'}
+          ⛳ Last Round
         </div>
         <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--gold-light);line-height:1.2;">
           ${weekday}, ${dateLong}
         </div>
-        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--cream);opacity:0.8;margin-top:4px;">
-          ${data.course} · $${data.buyin_per_player} buy-in
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--cream);opacity:0.85;margin-top:4px;">
+          ${round.course}${winTeams.length ? ` · Team ${winTeams.join(' & ')} wins${scoreDisplay ? ' · ' + scoreDisplay : ''}` : ''}
         </div>
+        ${winnerNames.length ? `
+          <div style="font-family:'DM Sans',sans-serif;font-size:12px;color:var(--gold-light);opacity:0.9;margin-top:4px;">
+            ${winnerNames.join(' · ')}
+          </div>` : ''}
       </div>
-      <button onclick="copyRsvpLinkFromStats('${data.id}')"
-        style="background:var(--gold);color:var(--green);border:none;border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.5px;cursor:pointer;white-space:nowrap;">
-        Copy RSVP Link
+      <button onclick="openLastRound('${round.id}')"
+        style="background:var(--gold);color:var(--green);border:none;border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.5px;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+        See Results →
       </button>
     </div>
   `;
 }
 
-function copyRsvpLinkFromStats(roundId) {
-  const url = `${window.location.origin}/rsvp.html?round=${roundId}`;
-  navigator.clipboard.writeText(url).then(() => toast('RSVP link copied!'));
+function openLastRound(roundId) {
+  _pendingRoundOpen = roundId;
+  showPage('history');
 }
 
 async function renderStats(filter) {
@@ -1547,7 +1558,7 @@ async function renderStats(filter) {
 
   if (!filter) {
     await loadPlayers();
-    renderUpcomingRound();    // fire async, don't await
+    renderLastRoundCallout(); // fire async, don't await
     renderSuperlatives();     // fire async, don't await — loads independently
   }
 
@@ -1730,19 +1741,53 @@ function renderPlayersAdmin() {
   container.innerHTML = all.map(p => {
     const isActive = p.active !== false;
     const avg      = p.avg_score != null ? parseFloat(p.avg_score).toFixed(1) : '—';
+    const contactLine = (p.email || p.phone)
+      ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone].filter(Boolean).join(' · ')}</div>`
+      : `<div class="player-admin-meta" style="margin-top:2px;color:#b94040;">No contact info</div>`;
     return `
       <div class="player-admin-row${isActive ? '' : ' player-inactive'}">
-        <div>
+        <div style="flex:1;min-width:0;">
           <div class="player-admin-name">${p.name}</div>
           <div class="player-admin-meta">${p.rounds_played || 0} rounds · avg ${avg}</div>
+          ${contactLine}
         </div>
-        <button class="btn btn-sm ${isActive ? 'btn-outline' : 'btn-gold'}"
-          onclick="togglePlayerActive('${p.id}', ${!isActive})">
-          ${isActive ? 'Deactivate' : 'Reactivate'}
-        </button>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-outline btn-sm" onclick="togglePlayerEdit('${p.id}')">Edit</button>
+          <button class="btn btn-sm ${isActive ? 'btn-outline' : 'btn-gold'}"
+            onclick="togglePlayerActive('${p.id}', ${!isActive})">
+            ${isActive ? 'Deactivate' : 'Reactivate'}
+          </button>
+        </div>
+      </div>
+      <div id="edit-${p.id}" style="display:none;padding:12px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="email" id="edit-email-${p.id}" value="${p.email || ''}" placeholder="Email"
+            style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+          <input type="tel" id="edit-phone-${p.id}" value="${p.phone || ''}" placeholder="Phone"
+            style="flex:1;min-width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+          <button class="btn btn-primary btn-sm" onclick="savePlayerContact('${p.id}')">Save</button>
+          <button class="btn btn-outline btn-sm" onclick="togglePlayerEdit('${p.id}')">Cancel</button>
+        </div>
       </div>
     `;
   }).join('');
+}
+
+function togglePlayerEdit(playerId) {
+  const el = document.getElementById('edit-' + playerId);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function savePlayerContact(playerId) {
+  const email = document.getElementById('edit-email-' + playerId)?.value.trim() || null;
+  const phone = document.getElementById('edit-phone-' + playerId)?.value.trim() || null;
+  if (!db) return;
+  const { error } = await db.from('players').update({ email, phone }).eq('id', playerId);
+  if (error) { toast('Error: ' + error.message); return; }
+  const p = state.players.find(p => p.id === playerId);
+  if (p) { p.email = email; p.phone = phone; }
+  toast('Contact info saved.');
+  renderPlayersAdmin();
 }
 
 async function deleteRound(roundId) {
