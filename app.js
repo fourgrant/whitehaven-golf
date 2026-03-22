@@ -1859,6 +1859,36 @@ async function loadHistoryRoundData(roundId, container) {
 
   html += '</div>';
 
+  // Tiebreaker summary (if applicable)
+  const tbScores   = round?.round_state?.tiebreakerScores || {};
+  const savedTS    = round?.team_scores || {};
+  const tsVals     = Object.values(savedTS).filter(s => typeof s === 'number');
+  if (tsVals.length) {
+    const minTS    = Math.min(...tsVals);
+    const tiedTeamsList = Object.entries(savedTS).filter(([, s]) => s === minTS).map(([t]) => t);
+    if (tiedTeamsList.length > 1 && Object.keys(tbScores).length) {
+      let teamsInPlay = [...tiedTeamsList];
+      let resolvedHole = null, resolvedWinners = null;
+      for (let h = 9; h >= 1; h--) {
+        const hScores = teamsInPlay.map(t => tbScores[t]?.[h]);
+        if (hScores.some(s => s === undefined)) break;
+        const minH = Math.min(...hScores);
+        const resolved = teamsInPlay.filter(t => tbScores[t][h] === minH);
+        if (resolved.length < teamsInPlay.length) { resolvedHole = h; resolvedWinners = resolved; break; }
+      }
+      if (resolvedHole !== null) {
+        const holeDetail = tiedTeamsList.map(t => `${t}:${tbScores[t]?.[resolvedHole] ?? '?'}`).join('  ');
+        html += `
+          <div style="margin:12px 0;padding:10px 14px;background:#fdf3d8;border:1px solid var(--gold);border-radius:8px;font-size:13px;">
+            ⚔️ <strong>Tiebreaker</strong> — Teams ${tiedTeamsList.join(' & ')} tied at ${minTS}.
+            Team ${resolvedWinners.join(' & ')} won on hole ${resolvedHole}
+            <span style="font-family:'DM Mono',monospace;color:var(--text-muted);margin-left:6px;">(${holeDetail})</span>
+          </div>
+        `;
+      }
+    }
+  }
+
   // Payouts table
   const payoutRows = results?.filter(r => r.total_winnings > 0) || [];
   if (payoutRows.length) {
