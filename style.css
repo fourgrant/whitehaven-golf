@@ -55,7 +55,7 @@ header {
 
 nav { display: flex; gap: 2px; flex-wrap: nowrap; }
 
-nav button {
+nav a, nav button {
   background: none;
   border: none;
   color: #9ab5a0;
@@ -68,10 +68,11 @@ nav button {
   border-radius: 4px;
   transition: all 0.15s;
   white-space: nowrap;
+  text-decoration: none;
 }
 
-nav button:hover  { color: var(--cream); background: rgba(255,255,255,0.08); }
-nav button.active { color: var(--gold-light); background: rgba(201,168,76,0.15); }
+nav a:hover,    nav button:hover  { color: var(--cream); background: rgba(255,255,255,0.08); }
+nav a.active,   nav button.active { color: var(--gold-light); background: rgba(201,168,76,0.15); }
 
 .commish-tab { display: none; }
 body.is-commish .commish-tab { display: inline-flex; }
@@ -1003,7 +1004,7 @@ body.is-commish .commish-only-flex { display: flex; }
   }
   nav::-webkit-scrollbar { display: none; }
 
-  nav button {
+  nav a, nav button {
     padding: 10px 14px;
     font-size: 11px;
     letter-spacing: 0.5px;
@@ -1011,7 +1012,7 @@ body.is-commish .commish-only-flex { display: flex; }
     border-radius: 0;
     border-bottom: 2px solid transparent;
   }
-  nav button.active {
+  nav a.active, nav button.active {
     border-bottom-color: var(--gold);
     background: none;
   }

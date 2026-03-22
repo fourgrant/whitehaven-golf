@@ -250,9 +250,9 @@ const SLUG_PAGES = Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v]) => 
 
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('nav button[data-page]').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('nav [data-page]').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const btn = document.querySelector(`nav button[data-page="${id}"]`);
+  const btn = document.querySelector(`nav [data-page="${id}"]`);
   if (btn) btn.classList.add('active');
 
   // Update the browser URL to the clean slug (e.g. /guide, /round)

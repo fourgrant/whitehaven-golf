@@ -85,14 +85,14 @@
   <div class="logo">⛳ Whitehaven <span>Golf League</span></div>
   <nav id="main-nav">
     <!-- Commish-only tabs -->
-    <button class="commish-tab" data-page="round" onclick="showPage('round')">Round</button>
-    <button class="commish-tab" data-page="teams" onclick="showPage('teams')">Teams</button>
-    <button class="commish-tab" data-page="scores" onclick="showPage('scores')">Scores</button>
-    <button class="commish-tab" data-page="players" onclick="showPage('players')">Players</button>
+    <a class="commish-tab" data-page="round"    href="/round"    onclick="event.preventDefault();showPage('round')">Round</a>
+    <a class="commish-tab" data-page="teams"    href="/teams"    onclick="event.preventDefault();showPage('teams')">Teams</a>
+    <a class="commish-tab" data-page="scores"   href="/scores"   onclick="event.preventDefault();showPage('scores')">Scores</a>
+    <a class="commish-tab" data-page="players"  href="/players"  onclick="event.preventDefault();showPage('players')">Players</a>
     <!-- Public tabs -->
-    <button data-page="stats"   onclick="showPage('stats')"   class="active">Stats</button>
-    <button data-page="history" onclick="showPage('history')"              >History</button>
-    <button class="commish-tab" data-page="howto" onclick="showPage('howto')">Guide</button>
+    <a data-page="stats"   href="/stats"   onclick="event.preventDefault();showPage('stats')"   class="active">Stats</a>
+    <a data-page="history" href="/history" onclick="event.preventDefault();showPage('history')">History</a>
+    <a class="commish-tab" data-page="howto"    href="/guide"    onclick="event.preventDefault();showPage('howto')">Guide</a>
   </nav>
   <div class="header-actions">
     <button class="btn-auth" id="auth-btn" onclick="showCommishLogin()">Commish Login</button>
