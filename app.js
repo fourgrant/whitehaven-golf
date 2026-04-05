@@ -2064,6 +2064,39 @@ async function loadHistoryRoundData(roundId, container) {
 
   html += '</div>';
 
+  // Build rpId -> player name map for skins/CTH lookup
+  const rpNameMap = {};
+  rps.forEach(rp => { rpNameMap[rp.id] = rp.players?.name || '?'; });
+
+  // Skins detail
+  const holeWinners = round?.round_state?.holeWinners || {};
+  const holeNums = Object.keys(holeWinners).map(Number).sort((a, b) => a - b);
+  if (holeNums.length) {
+    html += `<div class="section-label">Skins</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">`;
+    holeNums.forEach(h => {
+      const name = rpNameMap[holeWinners[h]] || '?';
+      html += `<span style="font-size:12px;font-family:'DM Mono',monospace;background:var(--cream);border:1px solid var(--border);border-radius:6px;padding:4px 10px;">Hole ${h}: <strong>${name}</strong></span>`;
+    });
+    html += `</div>`;
+  }
+
+  // CTH detail
+  const cthWinners = round?.round_state?.cthWinners || {};
+  const cthEntries = [
+    cthWinners.hole2 ? { hole: 2, rpId: cthWinners.hole2 } : null,
+    cthWinners.hole5 ? { hole: 5, rpId: cthWinners.hole5 } : null,
+  ].filter(Boolean);
+  if (cthEntries.length) {
+    html += `<div class="section-label">Closest to the Hole</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">`;
+    cthEntries.forEach(({ hole, rpId }) => {
+      const name = rpNameMap[rpId] || '?';
+      html += `<span style="font-size:12px;font-family:'DM Mono',monospace;background:var(--cream);border:1px solid var(--gold);border-radius:6px;padding:4px 10px;">Hole ${hole}: <strong>${name}</strong></span>`;
+    });
+    html += `</div>`;
+  }
+
   // Tiebreaker summary (if applicable)
   const tbScores   = round?.round_state?.tiebreakerScores || {};
   const savedTS    = round?.team_scores || {};
