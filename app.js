@@ -886,6 +886,8 @@ async function renderScoresPage() {
     if (finalizeBtn)  finalizeBtn.style.display = '';
     document.getElementById('payout-th-paidin').style.display  = '';
     document.getElementById('payout-th-paidout').style.display = '';
+    const editTeamsBtn = document.getElementById('edit-teams-btn');
+    if (editTeamsBtn) editTeamsBtn.style.display = r.status !== 'complete' ? '' : 'none';
   }
 
   renderTeamScoreCards();
