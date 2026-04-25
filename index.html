@@ -209,10 +209,24 @@
           <button class="btn btn-outline btn-sm" onclick="openPasteModal()">📋 Paste List</button>
           <button class="btn btn-outline btn-sm" onclick="importRsvps()">⬇ Import RSVPs</button>
           <button class="btn btn-outline btn-sm" onclick="autoBalance()">⚖ Auto-Balance</button>
+          <button class="btn btn-outline btn-sm" onclick="shuffleTeams()">🔀 Shuffle</button>
           <span id="teams-player-count" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
         </div>
         <div class="assign-grid" id="assign-list"></div>
         <hr>
+        <div class="commish-only" id="pairings-section">
+          <div class="section-label" style="margin-bottom:8px;">Play-Together Requests</div>
+          <div id="pairings-list"></div>
+          <div id="pairing-picker" style="display:none;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Select players to pair together:</div>
+            <div class="pairing-picker-grid" id="pairing-picker-grid"></div>
+            <div class="btn-row" style="margin-top:12px;">
+              <button class="btn btn-primary btn-sm" onclick="confirmPairing()">Add Pairing</button>
+              <button class="btn btn-outline btn-sm" onclick="closePairingPicker()">Cancel</button>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="add-pairing-btn" style="margin-bottom:14px;" onclick="addPairing()">+ Add Pairing</button>
+        </div>
         <div class="section-label">Team Preview</div>
         <div class="teams-grid" id="teams-preview"></div>
         <div class="btn-row">

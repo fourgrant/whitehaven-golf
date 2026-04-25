@@ -37,6 +37,7 @@ const state = {
   tiebreakerScores: {},   // team -> hole# -> score
   paidIn: new Set(),
   paidOut: new Set(),
+  pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
 };
 
 // ===== AUTO-SAVE HELPERS =====
@@ -452,6 +453,7 @@ async function renderTeamsPage() {
   }
   renderPlayerAssignList();
   renderTeamPreview();
+  renderPairingsSection();
   if (state.isCommish && state.currentRound) renderRsvpSummary();
 }
 
@@ -496,6 +498,7 @@ function togglePlayer(playerId, checked) {
   }
   renderPlayerAssignList();
   renderTeamPreview();
+  renderPairingsSection();
   updateCalc();
 }
 
@@ -568,26 +571,175 @@ function getTeamGroupsByPlayerId() {
   return teams;
 }
 
+// ===== TEAM BALANCING =====
+
+function applySnakeDraft(players, numTeams) {
+  const assignments = {};
+  players.forEach((p, i) => {
+    const round   = Math.floor(i / numTeams);
+    const pos     = i % numTeams;
+    const teamIdx = round % 2 === 0 ? pos : numTeams - 1 - pos;
+    assignments[p.id] = TEAMS[teamIdx];
+  });
+  return assignments;
+}
+
+// Builds units: active pair groups become one entry; remaining players are individual entries.
+function buildBalanceUnits(checkedIds) {
+  const usedIds = new Set();
+  const units = [];
+  for (const group of state.pairGroups) {
+    const members = group
+      .filter(id => checkedIds.includes(id))
+      .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 });
+    if (members.length >= 2) {
+      const avg = members.reduce((s, p) => s + (parseFloat(p.avg_score) || 40), 0) / members.length;
+      units.push({ players: members, avg });
+      members.forEach(p => usedIds.add(p.id));
+    }
+  }
+  checkedIds.filter(id => !usedIds.has(id)).forEach(id => {
+    const p = state.players.find(x => x.id === id) || { id, avg_score: 40 };
+    units.push({ players: [p], avg: parseFloat(p.avg_score) || 40 });
+  });
+  return units;
+}
+
+// Greedy assignment: strongest units go to teams that need them most (highest current avg).
+// Used when pair groups are present since groups have variable sizes.
+function assignUnitsGreedy(units, numTeams) {
+  const total = units.reduce((s, u) => s + u.players.length, 0);
+  const cap   = Math.ceil(total / numTeams);
+  const sizes  = Array(numTeams).fill(0);
+  const totals = Array(numTeams).fill(0);
+  const assignments = {};
+  const sorted = [...units].sort((a, b) => a.avg - b.avg); // strongest (lowest) first
+  for (const unit of sorted) {
+    let best = 0, bestAvg = -Infinity;
+    for (let t = 0; t < numTeams; t++) {
+      if (sizes[t] + unit.players.length > cap + 1) continue;
+      const cur = sizes[t] ? totals[t] / sizes[t] : Infinity; // empty team = infinite need
+      if (cur > bestAvg) { bestAvg = cur; best = t; }
+    }
+    unit.players.forEach(p => {
+      assignments[p.id] = TEAMS[best];
+      sizes[best]++;
+      totals[best] += parseFloat(p.avg_score) || 40;
+    });
+  }
+  return assignments;
+}
+
+function hasPairings(checkedIds) {
+  return state.pairGroups.some(g => g.filter(id => checkedIds.includes(id)).length >= 2);
+}
+
 function autoBalance() {
   const checkedIds = [...state.checkedIn];
   if (!checkedIds.length) { toast('Check in players first!'); return; }
 
-  const sorted = checkedIds
-    .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
-    .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
+  const numTeams = Math.min(Math.ceil(checkedIds.length / 4), TEAMS.length);
+  let assignments;
 
-  const numTeams = Math.min(Math.ceil(sorted.length / 4), TEAMS.length);
+  if (hasPairings(checkedIds)) {
+    assignments = assignUnitsGreedy(buildBalanceUnits(checkedIds), numTeams);
+  } else {
+    const sorted = checkedIds
+      .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
+      .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
+    assignments = applySnakeDraft(sorted, numTeams);
+  }
 
-  sorted.forEach((p, i) => {
-    const round   = Math.floor(i / numTeams);
-    const pos     = i % numTeams;
-    const teamIdx = round % 2 === 0 ? pos : numTeams - 1 - pos;
-    state.teamAssignments[p.id] = TEAMS[teamIdx];
-  });
-
+  Object.assign(state.teamAssignments, assignments);
   renderPlayerAssignList();
   renderTeamPreview();
   toast('Teams balanced by scoring average!');
+}
+
+function shuffleTeams() {
+  const checkedIds = [...state.checkedIn];
+  if (!checkedIds.length) { toast('Check in players first!'); return; }
+
+  const numTeams = Math.min(Math.ceil(checkedIds.length / 4), TEAMS.length);
+  let assignments;
+
+  if (hasPairings(checkedIds)) {
+    const units = buildBalanceUnits(checkedIds);
+    // Small jitter keeps pairings but varies the result
+    units.forEach(u => { u.avg += (Math.random() - 0.5) * 4; });
+    assignments = assignUnitsGreedy(units, numTeams);
+  } else {
+    const sorted = checkedIds
+      .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
+      .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
+    // Shuffle within each skill tier to vary teams while preserving balance
+    for (let i = 0; i < sorted.length; i += numTeams) {
+      for (let j = Math.min(i + numTeams, sorted.length) - 1; j > i; j--) {
+        const k = i + Math.floor(Math.random() * (j - i + 1));
+        [sorted[j], sorted[k]] = [sorted[k], sorted[j]];
+      }
+    }
+    assignments = applySnakeDraft(sorted, numTeams);
+  }
+
+  Object.assign(state.teamAssignments, assignments);
+  renderPlayerAssignList();
+  renderTeamPreview();
+  toast('Teams reshuffled!');
+}
+
+// ===== PAIRINGS =====
+
+function renderPairingsSection() {
+  const container = document.getElementById('pairings-list');
+  if (!container) return;
+  if (!state.pairGroups.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;margin:4px 0 8px;">None set — pairs will be honored during Auto-Balance and Shuffle.</p>';
+    return;
+  }
+  container.innerHTML = state.pairGroups.map((group, idx) => {
+    const names = group.map(id => state.players.find(p => p.id === id)?.name || '?').join(', ');
+    const allIn  = group.every(id => state.checkedIn.has(id));
+    return `<div class="pairing-row">
+      <span class="pairing-names${allIn ? '' : ' pairing-partial'}">${names}</span>
+      <button class="pairing-remove" onclick="removePairing(${idx})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function addPairing() {
+  const checkedPlayers = [...state.checkedIn]
+    .map(id => state.players.find(p => p.id === id))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (checkedPlayers.length < 2) { toast('Check in at least 2 players first!'); return; }
+
+  document.getElementById('pairing-picker-grid').innerHTML = checkedPlayers.map(p => `
+    <label class="pairing-check-row">
+      <input type="checkbox" value="${p.id}">
+      <span>${p.name}</span>
+    </label>
+  `).join('');
+  document.getElementById('pairing-picker').style.display = '';
+  document.getElementById('add-pairing-btn').style.display = 'none';
+}
+
+function closePairingPicker() {
+  document.getElementById('pairing-picker').style.display = 'none';
+  document.getElementById('add-pairing-btn').style.display = '';
+}
+
+function confirmPairing() {
+  const ids = [...document.querySelectorAll('#pairing-picker-grid input:checked')].map(cb => cb.value);
+  if (ids.length < 2) { toast('Select at least 2 players!'); return; }
+  state.pairGroups.push(ids);
+  closePairingPicker();
+  renderPairingsSection();
+}
+
+function removePairing(idx) {
+  state.pairGroups.splice(idx, 1);
+  renderPairingsSection();
 }
 
 async function addGuest() {
