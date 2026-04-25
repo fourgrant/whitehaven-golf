@@ -615,12 +615,14 @@ function assignUnitsGreedy(units, numTeams) {
   const assignments = {};
   const sorted = [...units].sort((a, b) => a.avg - b.avg); // strongest (lowest) first
   for (const unit of sorted) {
-    let best = 0, bestAvg = -Infinity;
+    let best = -1, bestAvg = -Infinity;
     for (let t = 0; t < numTeams; t++) {
-      if (sizes[t] + unit.players.length > cap + 1) continue;
+      if (sizes[t] + unit.players.length > cap) continue;
       const cur = sizes[t] ? totals[t] / sizes[t] : Infinity; // empty team = infinite need
       if (cur > bestAvg) { bestAvg = cur; best = t; }
     }
+    // Fallback: pair group too large for cap → drop on smallest team
+    if (best === -1) best = sizes.indexOf(Math.min(...sizes));
     unit.players.forEach(p => {
       assignments[p.id] = TEAMS[best];
       sizes[best]++;
