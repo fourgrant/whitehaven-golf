@@ -445,12 +445,25 @@
       </p>
       <div class="section-label">Assign teams</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
-        You have two options:
+        You have three options:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
         <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Best for most weeks.</li>
-        <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want specific pairings.</li>
+        <li><strong>Shuffle</strong> — click <em>🔀 Shuffle</em> to re-roll teams. Same checked-in players, different combinations, balance preserved by skill tier. Click again until you like the look of it.</li>
+        <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want full control.</li>
       </ul>
+      <div class="section-label">Play-together requests</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        Sometimes a few players want to be on the same team (e.g. visiting friends, a couple, a buddy group). Use <strong>Play-Together Requests</strong>:
+      </p>
+      <ol style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
+        <li>Check in everyone first.</li>
+        <li>Click <strong>+ Add Pairing</strong>, tick 2 or more players, click <strong>Add Pairing</strong>.</li>
+        <li>Click <strong>⚖ Auto-Balance</strong> or <strong>🔀 Shuffle</strong> — the algorithm assigns each pairing to the same team and balances around them.</li>
+      </ol>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+        Heads-up: pairing strong players together limits how fairly the rest can be balanced. The algorithm compensates as best it can, but a stack of low-handicap players on one team will likely have a small edge. Use sparingly when fairness matters.
+      </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
         A live team preview shows the groups as you assign. When everything looks right, click <strong>Save Teams &amp; Enter Scores</strong>.
       </p>
@@ -599,6 +612,58 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Release Notes link -->
+    <div class="card">
+      <h2>What's New</h2>
+      <p style="font-size:14px;line-height:1.7;color:var(--text-muted);margin-bottom:12px;">
+        See the running log of app changes, new features, and fixes. Worth a peek every few weeks so other commissioners know what's available.
+      </p>
+      <a href="/releases" onclick="event.preventDefault();showPage('releases')" class="btn btn-outline btn-sm">📜 View Release Notes →</a>
+    </div>
+
+  </div>
+
+  <!-- ===================================================
+       PAGE: RELEASE NOTES
+  ==================================================== -->
+  <div id="page-releases" class="page">
+    <div class="page-header">
+      <h1>Release Notes</h1>
+      <p>Running log of changes to the Whitehaven Golf League app. Newest first.</p>
+    </div>
+
+    <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v1.2</span>
+          <span class="release-date">April 25, 2026</span>
+        </div>
+        <h3>Team Shuffle &amp; Play-Together Pairings</h3>
+        <ul class="release-list">
+          <li><strong>🔀 Shuffle button</strong> on the Teams tab re-rolls team compositions while keeping balance comparable. Click again until the matchup feels right.</li>
+          <li><strong>Play-Together Requests</strong> let you lock 2+ players onto the same team before balancing. Auto-Balance and Shuffle both honor pairings.</li>
+          <li>Strong players paired together will produce a slight team advantage by design — the algorithm balances around the constraint as best it can.</li>
+          <li>Cache-busting added to deploys so future updates don't get stuck behind a stale browser cache.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v1.1</span>
+          <span class="release-date">April 22, 2026</span>
+        </div>
+        <h3>Leaderboard Fixes &amp; Polish</h3>
+        <ul class="release-list">
+          <li>Fixed leaderboard tile name display.</li>
+          <li>Best Round superlative now restricted to round winners only.</li>
+          <li>Tied 2nd / 3rd place rows on the podium now show all tied names.</li>
+          <li>Added an SVG favicon.</li>
+        </ul>
+      </div>
     </div>
 
   </div>

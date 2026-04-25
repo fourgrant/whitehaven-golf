@@ -1224,3 +1224,49 @@ body.is-commish .commish-only-flex { display: flex; }
 .pairing-check-row:hover { background: rgba(0,0,0,0.04); }
 
 .pairing-check-row input { accent-color: var(--green); }
+
+/* ===== RELEASE NOTES ===== */
+.release-entry { padding: 4px 0; }
+
+.release-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.release-version {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: var(--green);
+  background: var(--cream);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.release-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.release-entry h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+.release-list {
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.release-list li { margin-bottom: 4px; }
+.release-list li strong { color: var(--text); }
