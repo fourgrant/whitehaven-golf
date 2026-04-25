@@ -246,7 +246,7 @@ function renderNav() {
 }
 
 // Maps internal page ids → URL slugs (and back)
-const PAGE_SLUGS = { round:'round', teams:'teams', scores:'scores', players:'players', stats:'stats', history:'history', howto:'guide' };
+const PAGE_SLUGS = { round:'round', teams:'teams', scores:'scores', players:'players', stats:'stats', history:'history', howto:'guide', releases:'releases' };
 const SLUG_PAGES = Object.fromEntries(Object.entries(PAGE_SLUGS).map(([k,v]) => [v,k]));
 
 function showPage(id) {
