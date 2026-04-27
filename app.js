@@ -1663,6 +1663,14 @@ function buildPodium(sorted, getVal, ascending = false) {
   return places;
 }
 
+function toggleSuperlativeMore(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const hidden = el.style.display === 'none';
+  el.style.display = hidden ? '' : 'none';
+  btn.textContent  = hidden ? 'Hide ▲' : 'More ▼';
+}
+
 function podiumTile(icon, label, places, formatVal, opts = {}) {
   if (!places.length) return `
     <div class="superlative-tile">
@@ -1687,13 +1695,24 @@ function podiumTile(icon, label, places, formatVal, opts = {}) {
     `;
   }).join('');
 
+  const moreId = `sup-more-${label.replace(/[^a-z]/gi, '-').toLowerCase()}`;
+  const moreSection = podiumRows ? `
+    <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:6px;">
+      <button onclick="toggleSuperlativeMore('${moreId}', this)"
+        style="background:none;border:none;padding:0;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);cursor:pointer;letter-spacing:0.5px;">
+        More ▼
+      </button>
+      <div id="${moreId}" style="display:none;">${podiumRows}</div>
+    </div>
+  ` : '';
+
   return `
     <div class="superlative-tile">
       <div class="superlative-icon">${icon}</div>
       <div class="superlative-label">${label}</div>
       <div class="superlative-name">${firstName}</div>
       <div class="superlative-value">${formatVal(first.raw)}</div>
-      ${podiumRows ? `<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:6px;">${podiumRows}</div>` : ''}
+      ${moreSection}
     </div>
   `;
 }
