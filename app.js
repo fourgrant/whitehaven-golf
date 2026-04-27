@@ -1769,12 +1769,59 @@ function openLastRound(roundId) {
   showPage('history');
 }
 
+function computeRankChanges(players, lastRoundScores) {
+  const qualified = players
+    .filter(p => (p.rounds_played || 0) >= LEADERBOARD_MIN_ROUNDS)
+    .sort((a, b) => (parseFloat(a.avg_score) || 99) - (parseFloat(b.avg_score) || 99));
+
+  const currentRanks = {};
+  qualified.forEach((p, i) => { currentRanks[p.id] = i + 1; });
+
+  const preRound = qualified
+    .map(p => {
+      const lastScore = lastRoundScores[p.id];
+      if (lastScore === undefined) return { id: p.id, avg: parseFloat(p.avg_score) || 99 };
+      const rounds = p.rounds_played || 0;
+      if (rounds <= 1 || rounds - 1 < LEADERBOARD_MIN_ROUNDS) return null;
+      const preAvg = (parseFloat(p.avg_score) * rounds - lastScore) / (rounds - 1);
+      return { id: p.id, avg: preAvg };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.avg - b.avg);
+
+  const preRanks = {};
+  preRound.forEach((p, i) => { preRanks[p.id] = i + 1; });
+
+  const changes = {};
+  Object.keys(lastRoundScores).forEach(pid => {
+    if (currentRanks[pid] !== undefined && preRanks[pid] !== undefined) {
+      changes[pid] = preRanks[pid] - currentRanks[pid];
+    }
+  });
+  return changes;
+}
+
 async function renderStats(filter) {
   const list = document.getElementById('stats-list');
   if (!list) return;
 
   if (!filter) {
-    await loadPlayers();
+    const [, lastRoundScores] = await Promise.all([
+      loadPlayers(),
+      (async () => {
+        if (!db) return {};
+        const { data: lastRound } = await db.from('rounds')
+          .select('id').eq('status', 'complete')
+          .order('date', { ascending: false }).limit(1).single();
+        if (!lastRound) return {};
+        const { data: rps } = await db.from('round_players')
+          .select('player_id, score').eq('round_id', lastRound.id).not('score', 'is', null);
+        const map = {};
+        (rps || []).forEach(rp => { map[rp.player_id] = rp.score; });
+        return map;
+      })()
+    ]);
+    state.rankChanges = computeRankChanges(state.players, lastRoundScores);
     renderLastRoundCallout(); // fire async, don't await
     renderSuperlatives();     // fire async, don't await — loads independently
   }
@@ -1795,6 +1842,8 @@ async function renderStats(filter) {
   const scoreColor = avg =>
     avg < 37 ? '#2d5a40' : avg < 40 ? '#4a8c5c' : avg < 43 ? '#c9a84c' : '#b94040';
 
+  const rankChanges = state.rankChanges || {};
+
   function buildBarRows(players, startRank) {
     if (!players.length) return '';
     const scores = players.map(p => parseFloat(p.avg_score) || 40);
@@ -1806,9 +1855,16 @@ async function renderStats(filter) {
       const pct = Math.max(4, ((avg - minAvg) / range) * 100);
       const col = scoreColor(avg);
       const rank = startRank !== null ? `${startRank + i}` : '—';
+      const delta = rankChanges[p.id];
+      const indicator = delta > 0
+        ? `<span style="font-size:9px;color:#4a8c5c;line-height:1;">▲</span>`
+        : delta < 0
+        ? `<span style="font-size:9px;color:#b94040;line-height:1;">▼</span>`
+        : '';
       return `
         <div class="stat-bar-row" onclick="showPlayerModal('${p.id}')">
           <div class="stat-rank">${rank}</div>
+          <div style="width:10px;flex-shrink:0;text-align:center;">${indicator}</div>
           <div class="stat-name" title="${p.name}">${p.name}</div>
           <div class="stat-rounds">${p.rounds_played || 0}r</div>
           <div class="stat-bar-wrap">
