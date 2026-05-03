@@ -405,6 +405,27 @@ main {
 .tsrow-select:focus { outline: none; border-color: var(--green-light); }
 .tsrow-select:disabled { opacity: 0.4; cursor: default; }
 
+/* ===== INACTIVE SECTION ===== */
+.inactive-section-toggle {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  margin-top: 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+.inactive-section-toggle:hover { color: var(--green); }
+
+.inactive-player-row { opacity: 0.65; }
+.inactive-player-row input[type="checkbox"],
+.inactive-player-row select { opacity: 1; }
+
 /* ===== LEADERBOARD ===== */
 .lb-table {
   width: 100%;
