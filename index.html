@@ -451,7 +451,7 @@
         You have three options:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
-        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Best for most weeks.</li>
+        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Teams are always 3- or 4-man (or a mix), distributed as evenly as the headcount allows. Best for most weeks.</li>
         <li><strong>Shuffle</strong> — click <em>🔀 Shuffle</em> to re-roll teams. Same checked-in players, different combinations, balance preserved by skill tier. Click again until you like the look of it.</li>
         <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want full control.</li>
       </ul>
@@ -636,6 +636,20 @@
     <div class="page-header">
       <h1>Release Notes</h1>
       <p>Running log of changes to the Whitehaven Golf League app. Newest first.</p>
+    </div>
+
+    <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v1.5</span>
+          <span class="release-date">May 3, 2026</span>
+        </div>
+        <h3>Auto-Balance Always Produces 3- or 4-Man Teams</h3>
+        <ul class="release-list">
+          <li>Fixed a bug where Auto-Balance and Shuffle could leave a team with only 2 players when a Play-Together pairing was active. Teams are now guaranteed to be either 3- or 4-man, with sizes distributed as evenly as possible across the field.</li>
+          <li>Example: 18 checked-in players now always produces sizes <strong>4-4-4-3-3</strong> (never 4-4-4-4-2).</li>
+        </ul>
+      </div>
     </div>
 
     <div class="card">

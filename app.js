@@ -719,24 +719,44 @@ function buildBalanceUnits(checkedIds) {
   return units;
 }
 
+// We always play 3- or 4-man teams, or a mix. Given N players across T teams,
+// each team gets 3 or 4 players: (N - 3T) teams get a 4th, the rest get 3.
+function computeTeamSizes(total, numTeams) {
+  if (numTeams <= 0) return [];
+  if (numTeams * 3 > total || numTeams * 4 < total) {
+    // Can't satisfy 3-or-4 constraint (too few or too many players) — distribute evenly.
+    const base = Math.floor(total / numTeams);
+    const extra = total % numTeams;
+    return Array.from({ length: numTeams }, (_, i) => (i < extra ? base + 1 : base));
+  }
+  const extras = total - numTeams * 3;
+  return Array.from({ length: numTeams }, (_, i) => (i < extras ? 4 : 3));
+}
+
 // Greedy assignment: strongest units go to teams that need them most (highest current avg).
 // Used when pair groups are present since groups have variable sizes.
 function assignUnitsGreedy(units, numTeams) {
-  const total = units.reduce((s, u) => s + u.players.length, 0);
-  const cap   = Math.ceil(total / numTeams);
-  const sizes  = Array(numTeams).fill(0);
-  const totals = Array(numTeams).fill(0);
+  const total   = units.reduce((s, u) => s + u.players.length, 0);
+  const targets = computeTeamSizes(total, numTeams);
+  const sizes   = Array(numTeams).fill(0);
+  const totals  = Array(numTeams).fill(0);
   const assignments = {};
   const sorted = [...units].sort((a, b) => a.avg - b.avg); // strongest (lowest) first
   for (const unit of sorted) {
     let best = -1, bestAvg = -Infinity;
     for (let t = 0; t < numTeams; t++) {
-      if (sizes[t] + unit.players.length > cap) continue;
+      if (sizes[t] + unit.players.length > targets[t]) continue;
       const cur = sizes[t] ? totals[t] / sizes[t] : Infinity; // empty team = infinite need
       if (cur > bestAvg) { bestAvg = cur; best = t; }
     }
-    // Fallback: pair group too large for cap → drop on smallest team
-    if (best === -1) best = sizes.indexOf(Math.min(...sizes));
+    // Fallback: pair group too large for any team's remaining slots → team with most room
+    if (best === -1) {
+      let maxRem = -Infinity;
+      for (let t = 0; t < numTeams; t++) {
+        const rem = targets[t] - sizes[t];
+        if (rem > maxRem) { maxRem = rem; best = t; }
+      }
+    }
     unit.players.forEach(p => {
       assignments[p.id] = TEAMS[best];
       sizes[best]++;
