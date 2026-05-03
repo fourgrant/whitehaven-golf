@@ -212,7 +212,7 @@
           <button class="btn btn-outline btn-sm" onclick="shuffleTeams()">🔀 Shuffle</button>
           <span id="teams-player-count" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
         </div>
-        <div class="assign-grid" id="assign-list"></div>
+        <div id="assign-list"></div>
         <hr>
         <div class="commish-only" id="pairings-section">
           <div class="section-label" style="margin-bottom:8px;">Play-Together Requests</div>
@@ -438,10 +438,13 @@
       <h2>👥 Step 2 — Teams Tab</h2>
       <div class="section-label" style="margin-top:0;">Check in players</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
-        If you used the RSVP link, click <strong>Import RSVPs</strong> at the top to check everyone in at once. Otherwise, tap each player's name to check them in manually. Only active players appear — manage the roster on the <strong>Players</strong> tab.
+        If you used the RSVP link, click <strong>Import RSVPs</strong> at the top to check everyone in at once. Otherwise, tap each player's name to check them in manually.
+      </p>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;">
+        You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
-        You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread.
+        <strong style="color:var(--text);">Active vs. Inactive players</strong> — once the league has 8+ tracked rounds, the check-in list splits into two sections. <em>Active Players</em> (played in the last 8 rounds) appear at the top. <em>Inactive Players</em> are collapsed below — click <em>expand ▼</em> to reveal them. Inactive players are fully selectable; they just haven't shown up recently.
       </p>
       <div class="section-label">Assign teams</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
@@ -638,6 +641,22 @@
     <div class="card">
       <div class="release-entry">
         <div class="release-header">
+          <span class="release-version">v1.4</span>
+          <span class="release-date">May 3, 2026</span>
+        </div>
+        <h3>Player Activity States — Leaderboard &amp; Team Builder</h3>
+        <ul class="release-list">
+          <li><strong>Active vs. Inactive</strong> — Players who haven't played in any of the last 8 rounds are now classified as inactive. This keeps the main leaderboard focused on current regulars.</li>
+          <li><strong>Stats page:</strong> Inactive players collapse into a new section below the "Needs 5+ rounds" group. Click <em>expand ▼</em> to see them with a "last played N rounds ago" label. Once the league crosses 25 total tracked rounds, inactive players are hidden from the public leaderboard entirely.</li>
+          <li><strong>Team Builder:</strong> The check-in list is now grouped into Active Players and Inactive Players sections. Inactive players are collapsed by default but fully selectable — the commish can still check in anyone who shows up.</li>
+          <li>The footer on the Stats page now reflects the active activity rule automatically.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
           <span class="release-version">v1.3</span>
           <span class="release-date">April 27, 2026</span>
         </div>
@@ -710,9 +729,7 @@
         <input type="text" id="stats-search" placeholder="Search player…" oninput="filterStats(this.value)">
       </div>
       <div id="stats-list"><div class="loading">Loading players…</div></div>
-      <p style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:16px;letter-spacing:0.5px;">
-        Averages based on last 10 rounds played. Historical averages used as baseline until 10 rounds are tracked in the system. Player stats tracked from 1/1/2025; round-specific stats (skins, CTH, payouts) tracked from March 2026.
-      </p>
+      <p id="stats-footer" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-top:16px;letter-spacing:0.5px;"></p>
     </div>
   </div>
 

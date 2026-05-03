@@ -38,7 +38,11 @@ const state = {
   paidIn: new Set(),
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
+  activityData: null, // { totalTrackedRounds, playerActivity: Map<playerId, offset> }
 };
+
+let statsInactiveExpanded = false;
+let teamsInactiveExpanded = false;
 
 // ===== AUTO-SAVE HELPERS =====
 const _debounceTimers = {};
@@ -281,6 +285,38 @@ async function loadPlayers() {
   state.players = data || SEED_PLAYERS;
 }
 
+async function computeActivityData() {
+  if (state.activityData) return state.activityData;
+  if (!db) return (state.activityData = { totalTrackedRounds: 0, playerActivity: new Map() });
+
+  const { data: rounds } = await db.from('rounds')
+    .select('id').eq('status', 'complete').order('date', { ascending: false });
+  const totalTrackedRounds = (rounds || []).length;
+  if (!totalTrackedRounds) return (state.activityData = { totalTrackedRounds: 0, playerActivity: new Map() });
+
+  const roundIds = rounds.map(r => r.id);
+  const roundIndexMap = new Map(roundIds.map((id, i) => [id, i]));
+
+  const { data: rps } = await db.from('round_players')
+    .select('round_id, player_id').in('round_id', roundIds);
+
+  const playerActivity = new Map();
+  (rps || []).forEach(rp => {
+    const offset = roundIndexMap.get(rp.round_id);
+    if (offset === undefined) return;
+    const cur = playerActivity.get(rp.player_id);
+    if (cur === undefined || offset < cur) playerActivity.set(rp.player_id, offset);
+  });
+
+  return (state.activityData = { totalTrackedRounds, playerActivity });
+}
+
+function isInactivePlayer(id) {
+  if (!state.activityData || state.activityData.totalTrackedRounds < 8) return false;
+  const offset = state.activityData.playerActivity.get(id);
+  return offset === undefined || offset > 7;
+}
+
 async function loadCurrentRound() {
   if (!db || !state.currentRoundId) return;
   const { data, error } = await db.from('rounds').select('*').eq('id', state.currentRoundId).single();
@@ -451,6 +487,7 @@ async function renderTeamsPage() {
       state.teamAssignments[rp.player_id] = rp.team || '';
     });
   }
+  await computeActivityData();
   renderPlayerAssignList();
   renderTeamPreview();
   renderPairingsSection();
@@ -462,30 +499,107 @@ function renderPlayerAssignList() {
   const container = document.getElementById('assign-list');
   if (!container) return;
 
-  const filtered = state.players.filter(p =>
-    p.active !== false && (!search || p.name.toLowerCase().includes(search))
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  // Load activity data if not yet available
+  if (!state.activityData) {
+    computeActivityData().then(() => renderPlayerAssignList());
+    return;
+  }
+
+  const { totalTrackedRounds, playerActivity } = state.activityData;
+  const useActivityFilter = totalTrackedRounds >= 8;
+
   const checkedCount = state.checkedIn.size;
   const countEl = document.getElementById('teams-player-count');
   if (countEl) countEl.textContent = `${checkedCount} checked in`;
 
-  container.innerHTML = filtered.map(p => {
+  const allActive = state.players.filter(p => p.active !== false);
+
+  // Split into active / inactive groups (guests — id starts with 'guest-' — always go in active)
+  const activePlayers   = allActive.filter(p =>
+    !useActivityFilter || p.id.toString().startsWith('guest-') ||
+    (playerActivity.get(p.id) !== undefined && playerActivity.get(p.id) <= 7)
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const inactivePlayers = useActivityFilter
+    ? allActive.filter(p =>
+        !p.id.toString().startsWith('guest-') &&
+        (playerActivity.get(p.id) === undefined || playerActivity.get(p.id) > 7)
+      ).sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+
+  // Search filter: apply to both groups
+  const activeFiltered   = search ? activePlayers.filter(p => p.name.toLowerCase().includes(search)) : activePlayers;
+  const inactiveFiltered = search ? inactivePlayers.filter(p => p.name.toLowerCase().includes(search)) : inactivePlayers;
+
+  // Auto-expand inactive section if search found matches there
+  const forceExpand = search && inactiveFiltered.length > 0;
+
+  function buildRow(p, isInactiveRow) {
     const isIn  = state.checkedIn.has(p.id);
     const team  = state.teamAssignments[p.id] || '';
     const avg   = p.avg_score ? parseFloat(p.avg_score).toFixed(1) : '?';
+    let avgLabel = avg;
+    if (isInactiveRow) {
+      const offset = playerActivity.get(p.id);
+      avgLabel += offset === undefined ? ' · never' : ` · last ${offset}r ago`;
+    }
     return `
-      <div class="team-select-row">
+      <div class="team-select-row${isInactiveRow ? ' inactive-player-row' : ''}">
         <input type="checkbox" ${isIn ? 'checked' : ''} onchange="togglePlayer('${p.id}', this.checked)"
           style="cursor:pointer;accent-color:var(--green);flex-shrink:0;">
         <span class="tsrow-name" title="${p.name}">${p.name}</span>
-        <span class="tsrow-avg">${avg}</span>
+        <span class="tsrow-avg"${isInactiveRow ? ' style="width:auto;white-space:nowrap;"' : ''}>${avgLabel}</span>
         <select class="tsrow-select" onchange="assignTeam('${p.id}', this.value)" ${!isIn ? 'disabled' : ''}>
           <option value="">— Team</option>
           ${TEAMS.map(t => `<option value="${t}" ${team === t ? 'selected' : ''}>${t}</option>`).join('')}
         </select>
       </div>
     `;
-  }).join('');
+  }
+
+  let html = '';
+
+  if (useActivityFilter && inactivePlayers.length > 0) {
+    // Active section header
+    html += `
+      <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <div class="section-label" style="margin:0;">Active Players</div>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">${activePlayers.length} player${activePlayers.length !== 1 ? 's' : ''} · played in last 8 rounds</span>
+      </div>
+    `;
+  }
+
+  if (activeFiltered.length) {
+    html += `<div class="assign-grid">${activeFiltered.map(p => buildRow(p, false)).join('')}</div>`;
+  } else if (!search) {
+    html += `<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">No active players.</div>`;
+  }
+
+  if (useActivityFilter && inactivePlayers.length > 0) {
+    const expanded = forceExpand || teamsInactiveExpanded;
+    html += `
+      <div class="inactive-section-toggle" onclick="toggleTeamsInactive()">
+        <span>Inactive Players</span>
+        <span>${inactivePlayers.length} player${inactivePlayers.length !== 1 ? 's' : ''} · ${expanded ? 'hide ▲' : 'expand ▼'}</span>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:8px;margin-top:2px;">
+        Hasn't played in the last 8 rounds — still selectable for check-in
+      </div>
+    `;
+    if (expanded && inactiveFiltered.length) {
+      html += `<div class="assign-grid">${inactiveFiltered.map(p => buildRow(p, true)).join('')}</div>`;
+    } else if (expanded && search && !inactiveFiltered.length) {
+      html += `<div style="font-size:13px;color:var(--text-muted);padding:4px 0;">No inactive players match.</div>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+function toggleTeamsInactive() {
+  teamsInactiveExpanded = !teamsInactiveExpanded;
+  renderPlayerAssignList();
 }
 
 function togglePlayer(playerId, checked) {
@@ -869,6 +983,10 @@ function submitPasteList() {
       }
       checkedCount++;
     }
+  }
+  // Auto-expand inactive section if any matched player is inactive
+  if (!teamsInactiveExpanded && results.some(r => r.matched && isInactivePlayer(r.matched.id))) {
+    teamsInactiveExpanded = true;
   }
   renderPlayerAssignList();
   renderTeamPreview();
@@ -1509,6 +1627,7 @@ async function finalizeRound() {
   localStorage.removeItem('whg_round_id');
   localStorage.removeItem('whg_team_scores');
 
+  state.activityData = null;
   await loadPlayers();
   toast('Round finalized and results saved! 🏆');
   showPage('history');
@@ -1824,9 +1943,10 @@ async function renderStats(filter) {
   const list = document.getElementById('stats-list');
   if (!list) return;
 
-  if (!filter) {
-    const [, lastRoundScores] = await Promise.all([
+  if (filter == null) {
+    const [, , lastRoundScores] = await Promise.all([
       loadPlayers(),
+      computeActivityData(),
       (async () => {
         if (!db) return {};
         const { data: lastRound } = await db.from('rounds')
@@ -1845,25 +1965,45 @@ async function renderStats(filter) {
     renderSuperlatives();     // fire async, don't await — loads independently
   }
 
+  const { totalTrackedRounds, playerActivity } = state.activityData || { totalTrackedRounds: 0, playerActivity: new Map() };
+  const useActivityFilter = totalTrackedRounds >= 8;
+
+  function isActivePlayer(p) {
+    if (!useActivityFilter) return true;
+    const offset = playerActivity.get(p.id);
+    return offset !== undefined && offset <= 7;
+  }
+
   const f = (filter || '').toLowerCase();
   const all = state.players
     .filter(p => !f || p.name.toLowerCase().includes(f))
     .sort((a, b) => (parseFloat(a.avg_score) || 99) - (parseFloat(b.avg_score) || 99));
+
+  // Active section players
+  const activeAll    = all.filter(isActivePlayer);
+  const qualified    = activeAll.filter(p => (p.rounds_played || 0) >= LEADERBOARD_MIN_ROUNDS);
+  const pending      = activeAll.filter(p => (p.rounds_played || 0) <  LEADERBOARD_MIN_ROUNDS);
+
+  // Inactive section players (only when filter is active and threshold < 25)
+  const showInactiveSection = useActivityFilter && totalTrackedRounds < 25;
+  const inactiveAll = showInactiveSection
+    ? all.filter(p => {
+        const offset = playerActivity.get(p.id);
+        return offset === undefined || offset > 7;
+      })
+    : [];
 
   if (!all.length) {
     list.innerHTML = '<div class="empty-state"><p>No players found.</p></div>';
     return;
   }
 
-  const qualified = all.filter(p => (p.rounds_played || 0) >= LEADERBOARD_MIN_ROUNDS);
-  const pending   = all.filter(p => (p.rounds_played || 0) <  LEADERBOARD_MIN_ROUNDS);
-
   const scoreColor = avg =>
     avg < 37 ? '#2d5a40' : avg < 40 ? '#4a8c5c' : avg < 43 ? '#c9a84c' : '#b94040';
 
   const rankChanges = state.rankChanges || {};
 
-  function buildBarRows(players, startRank) {
+  function buildBarRows(players, startRank, suffixFn) {
     if (!players.length) return '';
     const scores = players.map(p => parseFloat(p.avg_score) || 40);
     const minAvg = Math.min(...scores);
@@ -1880,18 +2020,20 @@ async function renderStats(filter) {
         : delta < 0
         ? `<span style="font-size:9px;color:#b94040;line-height:1;">▼</span>`
         : '';
+      const roundsSuffix = suffixFn ? suffixFn(p) : '';
+      const roundsStyle = roundsSuffix ? 'width:auto;white-space:nowrap;' : '';
       return `
         <div class="stat-bar-row" onclick="showPlayerModal('${p.id}')">
           <div class="stat-rank">${rank}</div>
           <div style="width:10px;flex-shrink:0;text-align:center;">${indicator}</div>
           <div class="stat-name" title="${p.name}">${p.name}</div>
-          <div class="stat-rounds">${p.rounds_played || 0}r</div>
+          <div class="stat-rounds" style="${roundsStyle}">${p.rounds_played || 0}r${roundsSuffix}</div>
           <div class="stat-bar-wrap">
             <div class="stat-bar-bg">
               <div class="stat-bar-fill" style="width:${pct}%;background:${col}"></div>
             </div>
           </div>
-          <div class="stat-avg" style="color:${col}">${avg.toFixed(1)}</div>
+          <div class="stat-avg" style="color:${col}">${avg ? avg.toFixed(1) : '—'}</div>
         </div>
       `;
     }).join('');
@@ -1912,7 +2054,49 @@ async function renderStats(filter) {
     `;
   }
 
+  if (showInactiveSection && inactiveAll.length > 0) {
+    // Auto-expand if search matched inactive players
+    const forceExpand = !!f && inactiveAll.length > 0;
+    const expanded = forceExpand || statsInactiveExpanded;
+    const inactiveSuffix = p => {
+      const offset = playerActivity.get(p.id);
+      return offset === undefined ? ' · last played: never' : ` · last played ${offset} rounds ago`;
+    };
+    html += `
+      <div style="margin-top:28px;margin-bottom:4px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="toggleStatsInactive()">
+        <div class="section-label" style="margin:0;">Inactive Players</div>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">${inactiveAll.length} player${inactiveAll.length > 1 ? 's' : ''} · ${expanded ? 'hide ▲' : 'expand ▼'}</span>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:${expanded ? '10px' : '0'};">
+        Hasn't played in the last 8 rounds
+      </div>
+    `;
+    if (expanded) {
+      html += `<div style="opacity:0.65;">${buildBarRows(inactiveAll, null, inactiveSuffix)}</div>`;
+    }
+  }
+
   list.innerHTML = html;
+
+  // Dynamic footer
+  const footerEl = document.getElementById('stats-footer');
+  if (footerEl) {
+    const base = 'Averages based on last 10 rounds played. Historical averages used as baseline until 10 rounds are tracked in the system.';
+    const tail = 'Player stats tracked from 1/1/2025; round-specific stats (skins, CTH, payouts) tracked from March 2026.';
+    let activityNote = '';
+    if (totalTrackedRounds >= 25) {
+      activityNote = ' Players are hidden if they haven\'t played in the last 8 rounds.';
+    } else if (totalTrackedRounds >= 8) {
+      activityNote = ' Players must have played in at least 1 of the last 8 rounds to appear in the main leaderboard.';
+    }
+    footerEl.textContent = `${base}${activityNote} ${tail}`;
+  }
+}
+
+function toggleStatsInactive() {
+  statsInactiveExpanded = !statsInactiveExpanded;
+  renderStats(document.getElementById('stats-search')?.value || '');
 }
 
 function filterStats(val) {
@@ -2140,6 +2324,7 @@ async function deleteRound(roundId) {
   }
 
   // Reload players and re-render
+  state.activityData = null;
   await loadPlayers();
   await renderHistory();
 }
@@ -2541,13 +2726,16 @@ async function importRsvps() {
   if (!rsvps || !rsvps.length) { toast('No RSVPs to import.'); return; }
 
   let imported = 0;
+  let anyInactive = false;
   rsvps.forEach(r => {
     if (r.player_id && state.players.find(p => p.id === r.player_id)) {
       state.checkedIn.add(r.player_id);
       if (!state.teamAssignments[r.player_id]) state.teamAssignments[r.player_id] = '';
+      if (isInactivePlayer(r.player_id)) anyInactive = true;
       imported++;
     }
   });
+  if (!teamsInactiveExpanded && anyInactive) teamsInactiveExpanded = true;
 
   renderPlayerAssignList();
   renderTeamPreview();
