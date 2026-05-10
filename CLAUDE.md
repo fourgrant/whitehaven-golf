@@ -1,5 +1,26 @@
 # Whitehaven Golf League — Claude Guide
 
+## Deployment
+
+- After making changes, always commit, push, and deploy without waiting to be asked. Confirm the deployment is live by checking the production URL.
+- At the end of any feature change, bug fix, or user-facing tweak, update both the **Commish Guide** (`#page-howto` in `index.html`) and the **Release Notes** (`#page-releases` in `index.html`). Add a new versioned entry at the top of the release notes — newest first — and revise the relevant Step in the guide so the docs stay in sync with the app.
+
+## Debugging
+
+- When debugging image or asset display issues, always check: 
+	1) URL encoding (spaces, special chars)
+	2) CDN/Vercel caching of 404s
+	3) aspect ratio constraints. 
+Never assume a fix worked without verifying the live URL.
+
+## External APIs
+
+- When working with external APIs (Qgiv, Mailchimp, Twilio, etc.), always verify the exact request format (form-encoded vs JSON), correct base URLs/subdomains, and required credentials before making the first call.
+
+## Session Start
+
+- When resuming work from a previous session, read recent git log and open TODO/backlog files to understand what's unfinished before asking the user.
+
 ## Stack
 
 Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framework, no bundler.
@@ -34,7 +55,7 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 
 **Auth:** Commish password → `sessionStorage.whg_commish = true`; `body` gets `.is-commish` class.
 
-**State:** Active round ID in `localStorage.whg_round_id`. Falls back to `SEED_PLAYERS` (hardcoded) when Supabase is not configured.
+**State:** Active round ID in `localStorage.whg_round_id`. On load, if no cached id, the app auto-discovers the most recent non-complete round so the active draft is shared across all commish devices. Setup-phase check-ins and team letters auto-save to `round_players` immediately; `saveTeams()` only flips status to `in_progress`. Falls back to `SEED_PLAYERS` (hardcoded) when Supabase is not configured.
 
 ## Payout Math ($12 all-in)
 
