@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="WHG">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=5c2cc716">
+  <link rel="stylesheet" href="style.css?v=16729d1f">
 </head>
 <body>
 
@@ -179,6 +179,7 @@
     <div class="page-header">
       <h1>Team Builder</h1>
       <p>Check in today's players and assign them to teams. Use Auto-Balance for fair matchups.</p>
+      <div class="autosave-status" style="display:none;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);margin-top:4px;letter-spacing:0.5px;"></div>
     </div>
     <div id="no-round-teams" style="display:none;">
       <div class="card">
@@ -230,7 +231,7 @@
         <div class="section-label">Team Preview</div>
         <div class="teams-grid" id="teams-preview"></div>
         <div class="btn-row">
-          <button class="btn btn-gold" onclick="saveTeams()">Save Teams &amp; Enter Scores →</button>
+          <button class="btn btn-gold" onclick="saveTeams()">Lock In &amp; Open Scores →</button>
         </div>
       </div>
     </div>
@@ -243,7 +244,7 @@
     <div class="page-header">
       <h1>Scores</h1>
       <p id="scores-subtitle">Viewing current round scores.</p>
-      <div id="autosave-status" style="display:none;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);margin-top:4px;letter-spacing:0.5px;"></div>
+      <div class="autosave-status" style="display:none;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);margin-top:4px;letter-spacing:0.5px;"></div>
     </div>
     <div id="no-round-scores" style="display:none;">
       <div class="card">
@@ -468,10 +469,13 @@
         Heads-up: pairing strong players together limits how fairly the rest can be balanced. The algorithm compensates as best it can, but a stack of low-handicap players on one team will likely have a small edge. Use sparingly when fairness matters.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
-        A live team preview shows the groups as you assign. When everything looks right, click <strong>Save Teams &amp; Enter Scores</strong>.
+        A live team preview shows the groups as you assign. When everything looks right, click <strong>Lock In &amp; Open Scores</strong>.
       </p>
       <div style="margin-top:14px;padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
         <strong style="color:var(--text);">Guest players</strong> — use the <em>+ Add Guest</em> button to add a walk-up player who isn't in the roster. Guests are included in team math for the day but don't affect the permanent stats leaderboard.
+      </div>
+      <div style="margin-top:10px;padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
+        <strong style="color:var(--text);">Shared across devices</strong> — check-ins and team letters auto-save to the cloud as you go. Any commish on any device sees the same draft round on refresh, so if a no-show forces a reshuffle on the first tee, anyone with the commish password can adjust teams. <em>Clear Round</em> only forgets the round on the device you click it from; another commish device still has it.
       </div>
     </div>
 
@@ -641,6 +645,22 @@
     <div class="card">
       <div class="release-entry">
         <div class="release-header">
+          <span class="release-version">v1.6</span>
+          <span class="release-date">May 10, 2026</span>
+        </div>
+        <h3>Shared Draft Rounds — Multi-Device Team Builder</h3>
+        <ul class="release-list">
+          <li><strong>Active rounds now sync across devices.</strong> The draft round you're setting up no longer lives only on the device that created it — any commish on any phone or laptop sees the same check-ins and team letters on refresh.</li>
+          <li><strong>Auto-save during setup.</strong> Checking a player in, picking a team letter, running Auto-Balance, or shuffling all save instantly to the cloud. A small <em>Saving… / Saved ✓</em> indicator confirms each write.</li>
+          <li><strong>First-tee reshuffles.</strong> If a player doesn't show up, any commish can uncheck them and re-balance — the change appears for everyone else after a refresh.</li>
+          <li><strong>Save Teams button renamed</strong> to <strong>Lock In &amp; Open Scores</strong> to match its new role: setup is already saved, the button just opens the round for score entry.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
           <span class="release-version">v1.5</span>
           <span class="release-date">May 3, 2026</span>
         </div>
@@ -765,9 +785,9 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=5c2cc716"></script>
+<script src="config.js?v=16729d1f"></script>
 <!-- App logic -->
-<script src="app.js?v=5c2cc716"></script>
+<script src="app.js?v=16729d1f"></script>
 
 </body>
 </html>

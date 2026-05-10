@@ -52,17 +52,19 @@ function debounce(key, fn, ms = 800) {
 }
 
 function showSavingStatus() {
-  const el = document.getElementById('autosave-status');
-  if (el) { el.textContent = 'Saving…'; el.style.display = ''; }
+  document.querySelectorAll('.autosave-status').forEach(el => {
+    el.textContent = 'Saving…';
+    el.style.display = '';
+  });
 }
 
 function showSavedStatus() {
-  const el = document.getElementById('autosave-status');
-  if (el) {
-    el.textContent = 'Saved ✓';
-    clearTimeout(_debounceTimers['savedHide']);
-    _debounceTimers['savedHide'] = setTimeout(() => { el.style.display = 'none'; }, 2000);
-  }
+  const els = document.querySelectorAll('.autosave-status');
+  els.forEach(el => { el.textContent = 'Saved ✓'; });
+  clearTimeout(_debounceTimers['savedHide']);
+  _debounceTimers['savedHide'] = setTimeout(() => {
+    els.forEach(el => { el.style.display = 'none'; });
+  }, 2000);
 }
 
 function saveRoundState() {
@@ -77,6 +79,61 @@ function saveRoundState() {
     await db.from('rounds').update({ round_state: roundState }).eq('id', state.currentRound.id);
     showSavedStatus();
   });
+}
+
+// ===== SETUP-PHASE PERSISTENCE =====
+// Auto-saves check-ins and team-letter assignments to round_players during
+// status='setup' so other commish devices see the same draft on refresh.
+async function persistCheckIn(playerId) {
+  if (!db || !state.currentRound) return;
+  showSavingStatus();
+  const { error } = await db.from('round_players').upsert({
+    round_id: state.currentRound.id,
+    player_id: playerId,
+    team: state.teamAssignments[playerId] || null,
+  }, { onConflict: 'round_id,player_id' });
+  if (error) { console.error('persistCheckIn:', error); return; }
+  showSavedStatus();
+}
+
+async function persistCheckOut(playerId) {
+  if (!db || !state.currentRound) return;
+  showSavingStatus();
+  const { error } = await db.from('round_players')
+    .delete()
+    .eq('round_id', state.currentRound.id)
+    .eq('player_id', playerId);
+  if (error) { console.error('persistCheckOut:', error); return; }
+  showSavedStatus();
+}
+
+function persistTeamAssignment(playerId) {
+  if (!db || !state.currentRound) return;
+  showSavingStatus();
+  debounce('team:' + playerId, async () => {
+    const { error } = await db.from('round_players').upsert({
+      round_id: state.currentRound.id,
+      player_id: playerId,
+      team: state.teamAssignments[playerId] || null,
+    }, { onConflict: 'round_id,player_id' });
+    if (error) { console.error('persistTeamAssignment:', error); return; }
+    showSavedStatus();
+  }, 400);
+}
+
+async function persistTeamAssignmentsBulk() {
+  if (!db || !state.currentRound) return;
+  const records = [...state.checkedIn].map(pid => ({
+    round_id: state.currentRound.id,
+    player_id: pid,
+    team: state.teamAssignments[pid] || null,
+  }));
+  if (!records.length) return;
+  showSavingStatus();
+  const { error } = await db.from('round_players')
+    .upsert(records, { onConflict: 'round_id,player_id' });
+  if (error) { console.error('persistTeamAssignmentsBulk:', error); return; }
+  showSavedStatus();
 }
 
 // ===== SEED DATA (fallback when Supabase not configured) =====
@@ -140,6 +197,18 @@ let _pendingRoundOpen = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initAuth();
   await loadPlayers();
+  if (!state.currentRoundId && db) {
+    const { data } = await db.from('rounds')
+      .select('id')
+      .neq('status', 'complete')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      state.currentRoundId = data.id;
+      localStorage.setItem('whg_round_id', data.id);
+    }
+  }
   if (state.currentRoundId) await loadCurrentRound();
   renderNav();
 
@@ -606,9 +675,11 @@ function togglePlayer(playerId, checked) {
   if (checked) {
     state.checkedIn.add(playerId);
     if (!state.teamAssignments[playerId]) state.teamAssignments[playerId] = '';
+    persistCheckIn(playerId);
   } else {
     state.checkedIn.delete(playerId);
     delete state.teamAssignments[playerId];
+    persistCheckOut(playerId);
   }
   renderPlayerAssignList();
   renderTeamPreview();
@@ -618,6 +689,7 @@ function togglePlayer(playerId, checked) {
 
 function assignTeam(playerId, team) {
   state.teamAssignments[playerId] = team;
+  persistTeamAssignment(playerId);
   renderTeamPreview();
 }
 
@@ -787,6 +859,7 @@ function autoBalance() {
   }
 
   Object.assign(state.teamAssignments, assignments);
+  persistTeamAssignmentsBulk();
   renderPlayerAssignList();
   renderTeamPreview();
   toast('Teams balanced by scoring average!');
@@ -819,6 +892,7 @@ function shuffleTeams() {
   }
 
   Object.assign(state.teamAssignments, assignments);
+  persistTeamAssignmentsBulk();
   renderPlayerAssignList();
   renderTeamPreview();
   toast('Teams reshuffled!');
@@ -906,6 +980,7 @@ async function addGuest() {
   state.players.sort((a, b) => (a.avg_score || 99) - (b.avg_score || 99));
   state.checkedIn.add(data.id);
   state.teamAssignments[data.id] = '';
+  persistCheckIn(data.id);
   renderPlayerAssignList();
   renderTeamPreview();
   toast(`${data.name} added as guest!`);
@@ -1004,6 +1079,7 @@ function submitPasteList() {
       checkedCount++;
     }
   }
+  persistTeamAssignmentsBulk();
   // Auto-expand inactive section if any matched player is inactive
   if (!teamsInactiveExpanded && results.some(r => r.matched && isInactivePlayer(r.matched.id))) {
     teamsInactiveExpanded = true;
@@ -1051,6 +1127,7 @@ function resolvePastedName(rowIndex, playerId) {
   if (!state.checkedIn.has(playerId)) {
     state.checkedIn.add(playerId);
     if (!state.teamAssignments[playerId]) state.teamAssignments[playerId] = '';
+    persistCheckIn(playerId);
     renderPlayerAssignList();
     renderTeamPreview();
     updateCalc();
@@ -1082,6 +1159,7 @@ async function resolvePastedNameGuest(name, rowIndex) {
     state.players.sort((a, b) => (a.avg_score || 99) - (b.avg_score || 99));
     state.checkedIn.add(data.id);
     state.teamAssignments[data.id] = '';
+    persistCheckIn(data.id);
     renderPlayerAssignList();
     renderTeamPreview();
     toast(`${data.name} added as guest!`);
@@ -1117,33 +1195,21 @@ async function saveTeams() {
       };
     });
     state.currentRound.status = 'in_progress';
-    toast('Teams saved!');
+    toast('Teams locked in!');
     showPage('scores');
     return;
   }
 
-  // Delete existing + reinsert
-  await db.from('round_players').delete().eq('round_id', state.currentRound.id);
-
-  const records = [...state.checkedIn].map(pid => ({
-    round_id:   state.currentRound.id,
-    player_id:  pid,
-    team:       state.teamAssignments[pid] || null,
-    score:      null,
-    holes_won:  0,
-    cth_winner: false,
-    paid_in:    false,
-    paid_out:   false,
-  }));
-
-  const { error } = await db.from('round_players').insert(records);
-  if (error) { toast('Error saving teams: ' + error.message); return; }
-
-  await db.from('rounds').update({ status: 'in_progress' }).eq('id', state.currentRound.id);
+  // Setup-phase auto-save already wrote round_players. Just flip status.
+  await persistTeamAssignmentsBulk();
+  const { error } = await db.from('rounds')
+    .update({ status: 'in_progress' })
+    .eq('id', state.currentRound.id);
+  if (error) { toast('Error: ' + error.message); return; }
   state.currentRound.status = 'in_progress';
 
   await loadRoundPlayers();
-  toast('Teams saved! Ready to enter scores.');
+  toast('Teams locked in! Ready to enter scores.');
   showPage('scores');
 }
 
@@ -2756,6 +2822,7 @@ async function importRsvps() {
     }
   });
   if (!teamsInactiveExpanded && anyInactive) teamsInactiveExpanded = true;
+  await persistTeamAssignmentsBulk();
 
   renderPlayerAssignList();
   renderTeamPreview();
