@@ -197,16 +197,25 @@ let _pendingRoundOpen = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initAuth();
   await loadPlayers();
-  if (!state.currentRoundId && db) {
-    const { data } = await db.from('rounds')
-      .select('id')
-      .neq('status', 'complete')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      state.currentRoundId = data.id;
-      localStorage.setItem('whg_round_id', data.id);
+  if (db) {
+    // DB is the source of truth for the active round, not localStorage.
+    // Prefer in_progress (mid-game) over setup (draft); newest by created_at.
+    let { data: ipRound } = await db.from('rounds')
+      .select('id').eq('status', 'in_progress')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
+    let activeId = ipRound?.id || null;
+    if (!activeId) {
+      const { data: setupRound } = await db.from('rounds')
+        .select('id').eq('status', 'setup')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      activeId = setupRound?.id || null;
+    }
+    if (activeId) {
+      state.currentRoundId = activeId;
+      localStorage.setItem('whg_round_id', activeId);
+    } else {
+      state.currentRoundId = null;
+      localStorage.removeItem('whg_round_id');
     }
   }
   if (state.currentRoundId) await loadCurrentRound();
