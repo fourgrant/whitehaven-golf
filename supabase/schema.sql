@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS players (
   active        boolean NOT NULL DEFAULT true,
   email         text,
   phone         text,
-  base_avg      numeric,               -- historical avg before app tracking; used as blend seed
-  base_rounds   integer NOT NULL DEFAULT 0, -- historical round count before app tracking
+  base_avg      numeric,               -- DEPRECATED: historical-baseline blend removed; averages come from finalized app rounds only
+  base_rounds   integer NOT NULL DEFAULT 0, -- DEPRECATED: see base_avg
   created_at    timestamptz DEFAULT now()
 );
 
