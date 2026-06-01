@@ -1613,6 +1613,37 @@ function calcAndRenderPayouts() {
 }
 
 // ===== FINALIZE ROUND =====
+// Recompute a player's stats purely from finalized app rounds.
+//   avg_score     = mean of the most-recent up-to-10 finalized round scores (null if none)
+//   rounds_played = total count of finalized rounds the player has a score in
+// Single source of truth shared by finalizeRound() and deleteRound() so the two paths
+// can never drift apart. Also updates local state.players so the UI reflects it without reload.
+async function recalcPlayerStats(playerId) {
+  if (!db || !playerId) return;
+  const { data } = await db
+    .from('round_players')
+    .select('score, rounds!inner(date, status)')
+    .eq('player_id', playerId)
+    .not('score', 'is', null)
+    .eq('rounds.status', 'complete');
+
+  // Sort most-recent-first client-side (don't depend on embedded-resource ordering).
+  const rows = (data || [])
+    .filter(r => r.score !== null && !isNaN(r.score))
+    .sort((a, b) => (b.rounds?.date || '').localeCompare(a.rounds?.date || ''));
+  const scores = rows.map(r => r.score);
+  const last10 = scores.slice(0, 10);
+  const avg    = last10.length ? last10.reduce((a, b) => a + b, 0) / last10.length : null;
+  const update = {
+    rounds_played: scores.length,
+    avg_score:     avg == null ? null : parseFloat(avg.toFixed(2)),
+  };
+
+  await db.from('players').update(update).eq('id', playerId);
+  const p = state.players.find(x => x.id === playerId);
+  if (p) Object.assign(p, update);
+}
+
 async function finalizeRound() {
   if (!state.currentRound) return;
   const d = calcPayoutData();
@@ -1665,47 +1696,14 @@ async function finalizeRound() {
   await db.from('round_results').delete().eq('round_id', state.currentRound.id);
   await db.from('round_results').insert(results);
 
-  // Update player stats — rolling last-10 avg, blended with base_avg for new players
-  for (const rp of state.roundPlayers) {
-    const currentScore = state.scores[rp.id];
-    if (currentScore === undefined || currentScore === null) continue;
-    const player = state.players.find(p => p.id === rp.player_id);
-    if (!player) continue;
-
-    // Fetch last 9 app scores (current round will be the 10th)
-    const { data: history } = await db
-      .from('round_players')
-      .select('score')
-      .eq('player_id', rp.player_id)
-      .not('score', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(9);
-
-    const appScores = [currentScore, ...(history || []).map(h => h.score)];
-    const n = appScores.length; // 1–10
-
-    let newAvg;
-    if (n >= 10) {
-      // Full window of app scores — pure rolling last-10
-      newAvg = appScores.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
-    } else {
-      const baseAvg = parseFloat(player.base_avg ?? player.avg_score ?? 40);
-      if (baseAvg != null && (player.base_rounds || 0) > 0) {
-        // Blend app scores with historical base avg to fill the 10-round window
-        newAvg = (appScores.reduce((a, b) => a + b, 0) + baseAvg * (10 - n)) / 10;
-      } else {
-        newAvg = appScores.reduce((a, b) => a + b, 0) / n;
-      }
-    }
-
-    await db.from('players').update({
-      rounds_played: (player.rounds_played || 0) + 1,
-      avg_score:     parseFloat(newAvg.toFixed(2)),
-    }).eq('id', rp.player_id);
-  }
-
-  // Mark round complete and save team scores
+  // Mark round complete and save team scores BEFORE recalculating stats, so the
+  // round just finalized is included by recalcPlayerStats' status='complete' filter.
   await db.from('rounds').update({ status: 'complete', team_scores: state.teamScores }).eq('id', state.currentRound.id);
+
+  // Recompute each participant's stats purely from their finalized rounds.
+  for (const rp of state.roundPlayers) {
+    await recalcPlayerStats(rp.player_id);
+  }
 
   // Clear state
   state.currentRoundId  = null;
@@ -2016,7 +2014,11 @@ function computeRankChanges(players, lastRoundScores) {
       if (lastScore === undefined) return { id: p.id, avg: parseFloat(p.avg_score) || 99 };
       const rounds = p.rounds_played || 0;
       if (rounds <= 1 || rounds - 1 < LEADERBOARD_MIN_ROUNDS) return null;
-      const preAvg = (parseFloat(p.avg_score) * rounds - lastScore) / (rounds - 1);
+      // avg_score is the mean of the last min(rounds,10) finalized rounds. Back out the
+      // most recent round over that same window. Exact for ≤10 rounds; for >10 it ignores
+      // the older score that re-enters the window — fine for the cosmetic rank arrow.
+      const w = Math.min(rounds, 10);
+      const preAvg = (parseFloat(p.avg_score) * w - lastScore) / (w - 1);
       return { id: p.id, avg: preAvg };
     })
     .filter(Boolean)
@@ -2177,7 +2179,7 @@ async function renderStats(filter) {
   // Dynamic footer
   const footerEl = document.getElementById('stats-footer');
   if (footerEl) {
-    const base = 'Averages based on last 10 rounds played. Historical averages used as baseline until 10 rounds are tracked in the system.';
+    const base = 'Averages are the mean of each player’s last 10 finalized rounds. Players need 5+ tracked rounds to be ranked.';
     const tail = 'Player stats tracked from 1/1/2025; round-specific stats (skins, CTH, payouts) tracked from March 2026.';
     let activityNote = '';
     if (totalTrackedRounds >= 25) {
@@ -2219,8 +2221,9 @@ async function showPlayerModal(playerId) {
 
   const { data } = await db
     .from('round_players')
-    .select('score, team, round_id, rounds(date, course, status)')
+    .select('score, team, round_id, rounds!inner(date, course, status)')
     .eq('player_id', playerId)
+    .eq('rounds.status', 'complete')
     .not('score', 'is', null);
 
   if (!data?.length) {
@@ -2229,9 +2232,8 @@ async function showPlayerModal(playerId) {
     return;
   }
 
-  // Sort most recent first
+  // Sort most recent first (finalized rounds only — matches the leaderboard average)
   const sorted = data
-    .filter(rp => rp.rounds?.status === 'complete' || rp.score)
     .sort((a, b) => (b.rounds?.date || '').localeCompare(a.rounds?.date || ''));
 
   const bestScore = Math.min(...sorted.map(rp => rp.score || 99));
@@ -2282,6 +2284,26 @@ async function addNewPlayer() {
   state.players.push(data);
   state.players.sort((a, b) => (parseFloat(a.avg_score) || 99) - (parseFloat(b.avg_score) || 99));
   toast(`${name} added!`);
+  renderPlayersAdmin();
+}
+
+// One-time / on-demand correction: recompute every player's stats from their finalized
+// rounds. Replaces legacy spreadsheet seed values with app-tracked averages.
+async function recalcAllStats() {
+  if (!db) { toast('No DB connected.'); return; }
+  if (!confirm('Recalculate every player\'s average and round count from finalized rounds?')) return;
+
+  const btn = document.getElementById('recalc-all-btn');
+  if (btn) { btn.textContent = 'Recalculating…'; btn.disabled = true; }
+
+  const { data: players } = await db.from('players').select('id');
+  for (const p of (players || [])) {
+    await recalcPlayerStats(p.id);
+  }
+
+  await loadPlayers();
+  if (btn) { btn.textContent = 'Recalculate all stats'; btn.disabled = false; }
+  toast(`Recalculated stats for ${(players || []).length} players.`);
   renderPlayersAdmin();
 }
 
@@ -2373,39 +2395,9 @@ async function deleteRound(roundId) {
   const { error } = await db.from('rounds').delete().eq('id', roundId);
   if (error) { toast('Error deleting round: ' + error.message); return; }
 
-  // Recalculate stats for each affected player using base_avg blending
+  // Recalculate stats for each affected player from their remaining finalized rounds.
   for (const pid of playerIds) {
-    const player = state.players.find(p => p.id === pid);
-    const baseAvg    = parseFloat(player?.base_avg ?? player?.avg_score ?? 40);
-    const baseRounds = player?.base_rounds || 0;
-
-    const { data: remaining } = await db
-      .from('round_players')
-      .select('score')
-      .eq('player_id', pid)
-      .not('score', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    const appScores = (remaining || []).map(r => r.score).filter(s => s !== null && !isNaN(s));
-    const n = appScores.length;
-    const rounds_played = baseRounds + n;
-
-    let avg_score;
-    if (n === 0) {
-      avg_score = baseAvg;
-    } else if (n >= 10) {
-      avg_score = appScores.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
-    } else if (baseAvg != null && baseRounds > 0) {
-      avg_score = (appScores.reduce((a, b) => a + b, 0) + baseAvg * (10 - n)) / 10;
-    } else {
-      avg_score = appScores.reduce((a, b) => a + b, 0) / n;
-    }
-
-    await db.from('players').update({
-      rounds_played,
-      avg_score: parseFloat(avg_score.toFixed(2)),
-    }).eq('id', pid);
+    await recalcPlayerStats(pid);
   }
 
   toast('Round deleted and stats updated.');

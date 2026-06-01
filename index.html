@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="WHG">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=89720aca">
+  <link rel="stylesheet" href="style.css?v=e632d3ee">
 </head>
 <body>
 
@@ -348,6 +348,14 @@
       </div>
       <div id="players-admin-list"></div>
     </div>
+    <div class="card">
+      <h2>Maintenance</h2>
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">
+        Recompute every player's leaderboard average and round count from their finalized
+        rounds. Use this once after the scoring fix, or any time the numbers look off.
+      </p>
+      <button class="btn" id="recalc-all-btn" onclick="recalcAllStats()">Recalculate all stats</button>
+    </div>
   </div>
 
   <!-- ===================================================
@@ -556,6 +564,7 @@
         <li><strong>Edit contact info</strong> — click <em>Edit</em> next to any player to set or update their email and phone number. This is the info used for RSVP pre-fill and email reminders. Players who've RSVP'd at least once will already have this on file.</li>
         <li><strong>Deactivate</strong> — players sitting out the season can be deactivated so they don't clutter the check-in list. Their history and averages are preserved.</li>
         <li><strong>Reactivate</strong> — bring them back at any time with one click.</li>
+        <li><strong>Recalculate all stats</strong> — rebuilds every player's average and round count from their finalized rounds. Run it once after the scoring fix, or any time the leaderboard looks off.</li>
       </ul>
     </div>
 
@@ -563,10 +572,12 @@
     <div class="card">
       <h2>📊 How Scoring Averages Work</h2>
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
-        <li>Each player's average is calculated from their <strong>last 10 finalized rounds</strong>.</li>
-        <li>New players start with a <strong>seeded historical average</strong> until they have 10 rounds in the system — set this when adding them if you know their typical score.</li>
+        <li>Each player's average is the mean of their <strong>last 10 finalized rounds played in the app</strong> — the exact rounds shown when you tap their name on the Stats tab. The two always match.</li>
+        <li>Players need <strong>5+ tracked rounds</strong> to appear in the ranked leaderboard; until then they sit in the "Needs 5+ rounds to rank" section.</li>
+        <li>Averages come from app-tracked rounds only — older spreadsheet numbers are placeholders that get replaced as soon as a player logs finalized rounds.</li>
         <li>Auto-Balance uses these averages to create balanced teams, so keeping scores accurate each week matters.</li>
         <li>Individual scores (entered per player in the Scores tab) feed the averages — the team shamble score does not.</li>
+        <li>If the numbers ever look off, use <strong>Recalculate all stats</strong> on the Players tab to rebuild every average and round count from finalized rounds.</li>
         <li>After finalizing a round, the <strong>Stats leaderboard</strong> shows a small <strong>▲</strong> or <strong>▼</strong> next to each participant's rank — green ▲ means they moved up, red ▼ means they dropped. Only players from the most recent round are marked, and only if they had 5+ rounds before it.</li>
       </ul>
     </div>
@@ -643,6 +654,21 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v1.7</span>
+          <span class="release-date">June 1, 2026</span>
+        </div>
+        <h3>Leaderboard Scoring Fix — Averages Now Match a Player's Rounds</h3>
+        <ul class="release-list">
+          <li><strong>Averages are now computed only from finalized rounds played in the app.</strong> A player's leaderboard average is the mean of their last 10 finalized rounds — exactly the rounds you see when you tap their name. The old spreadsheet seed numbers were placeholders that never reconciled with a player's actual scores; they're now replaced as soon as rounds are tracked.</li>
+          <li><strong>Fixed a double-count bug.</strong> Finalizing a round used to count that round twice in the average. It's now counted exactly once.</li>
+          <li><strong>Finalize and delete now agree.</strong> Both paths recompute stats the same way, so a player's round count no longer changes depending on which action ran last.</li>
+          <li><strong>Player popup shows finalized rounds only.</strong> In-progress rounds no longer sneak into the history list, so the scores shown always average out to the displayed number.</li>
+          <li><strong>New "Recalculate all stats" button</strong> on the Players tab corrects every player's average and round count in one tap.</li>
+          <li><em>Heads up:</em> with averages now app-only, players with fewer than 5 tracked rounds sit in the "Needs 5+ rounds to rank" section until they play more.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v1.6</span>
@@ -785,9 +811,9 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=89720aca"></script>
+<script src="config.js?v=e632d3ee"></script>
 <!-- App logic -->
-<script src="app.js?v=89720aca"></script>
+<script src="app.js?v=e632d3ee"></script>
 
 </body>
 </html>
