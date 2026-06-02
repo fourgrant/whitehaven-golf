@@ -2179,15 +2179,7 @@ async function renderStats(filter) {
   // Dynamic footer
   const footerEl = document.getElementById('stats-footer');
   if (footerEl) {
-    const base = 'Averages are the mean of each player’s last 10 finalized rounds. Players need 5+ tracked rounds to be ranked.';
-    const tail = 'Player stats tracked from 1/1/2025; round-specific stats (skins, CTH, payouts) tracked from March 2026.';
-    let activityNote = '';
-    if (totalTrackedRounds >= 25) {
-      activityNote = ' Players are hidden if they haven\'t played in the last 8 rounds.';
-    } else if (totalTrackedRounds >= 8) {
-      activityNote = ' Players must have played in at least 1 of the last 8 rounds to appear in the main leaderboard.';
-    }
-    footerEl.textContent = `${base}${activityNote} ${tail}`;
+    footerEl.textContent = 'Averages are the mean of each player’s last 10 finalized rounds. Players need 5+ tracked rounds to be ranked. Players must have played in at least 1 of the last 8 rounds to appear in the main leaderboard. Player stats tracked from 1/1/2025; round-specific stats (skins, CTH, payouts) tracked from March 2026.';
   }
 }
 
