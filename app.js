@@ -39,6 +39,7 @@ const state = {
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
   activityData: null, // { totalTrackedRounds, playerActivity: Map<playerId, offset> }
+  seasonLedger: null, // cached promise → { year, roundIds, roundMeta, byPlayer } (The Bank + Trophy Case)
 };
 
 let statsInactiveExpanded = false;
@@ -1721,6 +1722,7 @@ async function finalizeRound() {
   localStorage.removeItem('whg_team_scores');
 
   state.activityData = null;
+  state.seasonLedger = null;
   await loadPlayers();
   toast('Round finalized and results saved! 🏆');
   showPage('history');
@@ -1929,6 +1931,331 @@ function podiumTile(icon, label, places, formatVal, opts = {}) {
   `;
 }
 
+// ===== SEASON LEDGER (shared by The Bank + Trophy Case) =====
+// Loads every payout-tracked complete round for the current year and builds a
+// chronological, per-player record so streak badges and bankroll trends can be
+// computed without re-querying. Cached as a promise on state (dedupes concurrent
+// callers); invalidated wherever activityData is reset (finalize / delete round).
+function loadSeasonLedger() {
+  if (!state.seasonLedger) state.seasonLedger = buildSeasonLedger();
+  return state.seasonLedger;
+}
+
+async function buildSeasonLedger() {
+  const year  = new Date().getFullYear();
+  const empty = { year, roundIds: [], roundMeta: new Map(), byPlayer: new Map() };
+  try {
+    if (!db) return empty;
+
+    const { data: rounds } = await db.from('rounds')
+      .select('id, date, buyin_per_player')
+      .eq('status', 'complete').gte('date', `${year}-01-01`)
+      .order('date', { ascending: true });
+    if (!rounds || !rounds.length) return empty;
+
+    const roundMeta = new Map();
+    rounds.forEach((r, i) => roundMeta.set(r.id, {
+      date:  r.date,
+      buyin: parseFloat(r.buyin_per_player) || 12,
+      idx:   i,
+    }));
+    const roundIds = rounds.map(r => r.id);
+
+    const [{ data: results }, { data: rps }] = await Promise.all([
+      db.from('round_results')
+        .select('player_id, round_id, total_winnings, team_winnings, skin_winnings, cth_winnings, players(name)')
+        .in('round_id', roundIds),
+      db.from('round_players')
+        .select('player_id, round_id, score, team, holes_won, cth_count, players(name)')
+        .in('round_id', roundIds),
+    ]);
+
+    // Index round_players by player+round so we can join the extra per-round
+    // fields (score, skins, CTPs) onto each results row.
+    const rpMap = new Map();
+    (rps || []).forEach(rp => rpMap.set(`${rp.player_id}|${rp.round_id}`, rp));
+
+    // The money game is "tracked" only for rounds that produced round_results
+    // (payouts started March 2026). Building from results means net P/L and the
+    // badges reflect only the recorded money game — older score-only rounds are
+    // ignored, which keeps the numbers reconciled with the Season Awards tiles.
+    const byPlayer = new Map();
+    (results || []).forEach(res => {
+      const meta = roundMeta.get(res.round_id);
+      if (!meta) return;
+      const rp = rpMap.get(`${res.player_id}|${res.round_id}`) || {};
+      let p = byPlayer.get(res.player_id);
+      if (!p) {
+        p = { name: res.players?.name || rp.players?.name || 'Unknown', rounds: [] };
+        byPlayer.set(res.player_id, p);
+      }
+      p.rounds.push({
+        round_id:  res.round_id,
+        date:      meta.date,
+        idx:       meta.idx,
+        buyin:     meta.buyin,
+        total:     parseFloat(res.total_winnings || 0),
+        team_win:  parseFloat(res.team_winnings || 0),
+        score:     (rp.score != null ? rp.score : null),
+        team:      rp.team || null,
+        holes_won: rp.holes_won || 0,
+        cth_count: rp.cth_count || 0,
+      });
+    });
+
+    // Chronological order (oldest → newest) for streaks / cumulative bankroll.
+    byPlayer.forEach(p => p.rounds.sort((a, b) => a.idx - b.idx));
+
+    return { year, roundIds, roundMeta, byPlayer };
+  } catch (e) {
+    console.error('buildSeasonLedger failed:', e);
+    state.seasonLedger = null; // allow a retry on the next call
+    return empty;
+  }
+}
+
+// ===== THE BANK (season money race) =====
+function computeBank(ledger) {
+  const players = [];
+  ledger.byPlayer.forEach((p, id) => {
+    let totalWinnings = 0, totalBuyIn = 0, cum = 0, biggest = null;
+    const series = [];
+    p.rounds.forEach(r => {
+      totalWinnings += r.total;
+      totalBuyIn    += r.buyin;
+      cum += (r.total - r.buyin);
+      series.push({ date: r.date, cum });
+      if (!biggest || r.total > biggest.total) biggest = { total: r.total, date: r.date };
+    });
+    players.push({
+      id, name: p.name,
+      rounds: p.rounds.length,
+      totalWinnings, totalBuyIn,
+      net: totalWinnings - totalBuyIn,
+      biggest, series,
+    });
+  });
+  players.sort((a, b) => b.net - a.net);
+  return players;
+}
+
+// Inline SVG sparkline of cumulative net over time — no charting library.
+// Scaling mirrors buildBarRows' min/max-to-range approach, emitted as coords.
+function bankrollSparkline(series, opts = {}) {
+  const w = opts.w || 120, h = opts.h || 28, pad = 3;
+  if (!series || !series.length) return '';
+  const vals  = series.map(s => s.cum);
+  const lo    = Math.min(0, ...vals);   // always include the $0 baseline
+  const hi    = Math.max(0, ...vals);
+  const range = (hi - lo) || 1;
+  const n     = series.length;
+  const x = i => n === 1 ? w / 2 : pad + (i / (n - 1)) * (w - 2 * pad);
+  const y = v => h - pad - ((v - lo) / range) * (h - 2 * pad);
+  const last   = vals[n - 1];
+  const stroke = last >= 0 ? '#4a8c5c' : '#b94040';
+  const zeroY  = y(0).toFixed(1);
+  const pts    = series.map((s, i) => `${x(i).toFixed(1)},${y(s.cum).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:visible;">
+    <line x1="${pad}" y1="${zeroY}" x2="${w - pad}" y2="${zeroY}" stroke="#e2dccf" stroke-width="1" stroke-dasharray="2 2"/>
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(n - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="2.3" fill="${stroke}"/>
+  </svg>`;
+}
+
+const fmtSignedMoney = n => `${n < 0 ? '−' : '+'}$${Math.abs(n).toFixed(2)}`;
+
+async function renderBank() {
+  const el = document.getElementById('bank-content');
+  if (!el) return;
+  if (!db) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">Connect Supabase to see the money race.</p>';
+    return;
+  }
+
+  const ledger  = await loadSeasonLedger();
+  const players = computeBank(ledger).filter(p => p.rounds > 0);
+  if (!players.length) {
+    el.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">No payouts recorded yet in ${ledger.year}.</p>`;
+    return;
+  }
+
+  const maxAbs = Math.max(...players.map(p => Math.abs(p.net))) || 1;
+
+  // League-wide biggest single-round haul.
+  let topHaul = null;
+  players.forEach(p => {
+    if (p.biggest && p.biggest.total > 0 && (!topHaul || p.biggest.total > topHaul.total)) {
+      topHaul = { name: p.name, ...p.biggest };
+    }
+  });
+  const haulHtml = topHaul ? `
+    <div style="background:var(--green);border-radius:10px;padding:12px 16px;margin-bottom:16px;border:1px solid var(--gold);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);">💰 Biggest Haul</div>
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold-light);">${topHaul.name} · $${topHaul.total.toFixed(2)}</div>
+    </div>` : '';
+
+  const row = (p, rank) => {
+    const col = p.net >= 0 ? '#4a8c5c' : '#b94040';
+    const pct = Math.max(4, (Math.abs(p.net) / maxAbs) * 100);
+    return `
+      <div class="stat-bar-row" onclick="showPlayerModal('${p.id}')">
+        <div class="stat-rank">${rank}</div>
+        <div class="stat-name" title="${p.name}">${p.name}</div>
+        <div class="stat-rounds">${p.rounds}r</div>
+        <div class="stat-bar-wrap"><div class="stat-bar-bg">
+          <div class="stat-bar-fill" style="width:${pct}%;background:${col}"></div>
+        </div></div>
+        <div class="stat-avg" style="color:${col};width:64px;">${fmtSignedMoney(p.net)}</div>
+      </div>`;
+  };
+
+  el.innerHTML = haulHtml + players.map((p, i) => row(p, i + 1)).join('');
+}
+
+// ===== THE TROPHY CASE (achievements) =====
+// Longest run of consecutive wins anywhere in a player's season.
+function longestWinStreak(rounds) {
+  let run = 0, best = 0;
+  rounds.forEach(r => { if (r.team_win > 0) { run++; best = Math.max(best, run); } else run = 0; });
+  return best;
+}
+// Trailing consecutive wins ending on the most recent round (an *active* streak).
+function currentWinStreak(rounds) {
+  let streak = 0;
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    if (rounds[i].team_win > 0) streak++; else break;
+  }
+  return streak;
+}
+
+// Returns Map<player_id, Badge[]> computed purely from the season ledger.
+function computeBadges(ledger) {
+  const map = new Map();
+  const add = (id, badge) => { (map.get(id) || map.set(id, []).get(id)).push(badge); };
+
+  let maxRounds = 0;
+  ledger.byPlayer.forEach(p => { if (p.rounds.length > maxRounds) maxRounds = p.rounds.length; });
+
+  let bestComeback = null; // { id, delta, score }
+  ledger.byPlayer.forEach((p, id) => {
+    const rounds = p.rounds; // chronological
+    let totalWinnings = 0, bestSkins = 0, hadPinSeeker = false;
+    let runSum = 0, runCount = 0;
+    rounds.forEach(r => {
+      totalWinnings += r.total;
+      if (r.holes_won > bestSkins) bestSkins = r.holes_won;
+      if (r.cth_count >= 2) hadPinSeeker = true;
+      if (r.score != null) {
+        if (runCount > 0) {
+          const delta = (runSum / runCount) - r.score; // prior avg − this score
+          if (delta > 0 && (!bestComeback || delta > bestComeback.delta)) {
+            bestComeback = { id, delta, score: r.score };
+          }
+        }
+        runSum += r.score; runCount++;
+      }
+    });
+
+    const streak = longestWinStreak(rounds);
+    if (streak >= 3)   add(id, { id: 'onfire',   icon: '🔥',  label: 'On Fire',       desc: `Won ${streak} rounds in a row` });
+    if (bestSkins >= 4) add(id, { id: 'skins',    icon: '🦴',  label: 'Skins Machine', desc: `${bestSkins} skins in one round` });
+    if (hadPinSeeker)   add(id, { id: 'pin',      icon: '📍',  label: 'Pin Seeker',    desc: 'Both CTPs in one day' });
+    if (rounds.length >= 3 && totalWinnings === 0)
+      add(id, { id: 'bankrupt', icon: '💸', label: 'Bankrupt', desc: 'Paid in all year, won nothing' });
+    if (maxRounds >= 1 && rounds.length === maxRounds)
+      add(id, { id: 'ironman', icon: '🏋️', label: 'Iron Man', desc: `Played ${rounds.length} rounds` });
+  });
+
+  if (bestComeback)
+    add(bestComeback.id, { id: 'comeback', icon: '🚀', label: 'Comeback Kid', desc: `Beat avg by ${bestComeback.delta.toFixed(1)} strokes` });
+
+  return map;
+}
+
+async function renderWhosHot() {
+  const grid = document.getElementById('whoshot-grid');
+  if (!grid) return;
+  if (!db) {
+    grid.innerHTML = '<p style="font-size:13px;color:var(--text-muted);grid-column:1/-1;">Connect Supabase to see who\'s hot.</p>';
+    return;
+  }
+
+  const ledger = await loadSeasonLedger();
+  const badges = computeBadges(ledger);
+
+  // Active win streaks first (most recent round was a win, 2+ in a row).
+  const hot = [];
+  ledger.byPlayer.forEach((p, id) => {
+    const streak = currentWinStreak(p.rounds);
+    if (streak >= 2) hot.push({ id, name: p.name, icon: '🔥', label: 'On Fire', value: `Won last ${streak}`, sort: streak });
+  });
+  hot.sort((a, b) => b.sort - a.sort);
+
+  // Backfill with notable badge-holders so the shelf isn't bare on a quiet week.
+  if (hot.length < 5) {
+    const seen = new Set(hot.map(h => h.id));
+    const priority = ['skins', 'pin', 'comeback', 'ironman'];
+    badges.forEach((arr, id) => {
+      if (seen.has(id)) return;
+      const b = arr.filter(x => priority.includes(x.id))
+                   .sort((x, y) => priority.indexOf(x.id) - priority.indexOf(y.id))[0];
+      if (b) hot.push({ id, name: ledger.byPlayer.get(id)?.name || '', icon: b.icon, label: b.label, value: b.desc, sort: -1 });
+    });
+  }
+
+  if (!hot.length) {
+    grid.innerHTML = `<p style="font-size:13px;color:var(--text-muted);grid-column:1/-1;padding:8px 0;">No hot streaks yet — play a round to heat up. 🧊</p>`;
+    return;
+  }
+
+  grid.innerHTML = hot.slice(0, 5).map(h => `
+    <div class="superlative-tile" style="cursor:pointer;" onclick="showPlayerModal('${h.id}')">
+      <div class="superlative-icon">${h.icon}</div>
+      <div class="superlative-label">${h.label}</div>
+      <div class="superlative-name">${h.name}</div>
+      <div class="superlative-value">${h.value}</div>
+    </div>
+  `).join('');
+}
+
+// Fills the Trophy Case + Bankroll sections inside the player modal.
+async function renderPlayerExtras(playerId) {
+  const tc = document.getElementById('modal-trophy-case');
+  const bk = document.getElementById('modal-bankroll');
+  if (!tc || !bk) return;
+  if (!db) { tc.innerHTML = ''; bk.innerHTML = ''; return; }
+  tc.innerHTML = '<div class="loading">Loading…</div>';
+  bk.innerHTML = '';
+
+  const ledger = await loadSeasonLedger();
+  const badges = computeBadges(ledger).get(playerId) || [];
+  const bank   = computeBank(ledger).find(p => p.id === playerId);
+
+  tc.innerHTML = badges.length
+    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">` + badges.map(b => `
+        <div title="${b.desc}" style="display:flex;align-items:center;gap:7px;background:var(--warm-white);border:1px solid var(--border);border-radius:20px;padding:6px 12px;">
+          <span style="font-size:16px;line-height:1;">${b.icon}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.5px;color:var(--green);">${b.label}</span>
+        </div>`).join('') + `</div>`
+    : `<p style="color:var(--text-muted);font-size:13px;margin:0;">No badges yet this season.</p>`;
+
+  if (bank && bank.rounds > 0) {
+    const col = bank.net >= 0 ? '#4a8c5c' : '#b94040';
+    bk.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:${col};">${fmtSignedMoney(bank.net)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;color:var(--text-muted);text-transform:uppercase;">
+            Net · $${bank.totalWinnings.toFixed(2)} won − $${bank.totalBuyIn.toFixed(2)} in
+          </div>
+        </div>
+        <div>${bankrollSparkline(bank.series, { w: 130, h: 34 })}</div>
+      </div>`;
+  } else {
+    bk.innerHTML = `<p style="color:var(--text-muted);font-size:13px;margin:0;">No money rounds tracked yet this season.</p>`;
+  }
+}
+
 async function renderLastRoundCallout() {
   const el = document.getElementById('upcoming-callout');
   if (!el || !db) return;
@@ -2060,6 +2387,8 @@ async function renderStats(filter) {
     state.rankChanges = computeRankChanges(state.players, lastRoundScores);
     renderLastRoundCallout(); // fire async, don't await
     renderSuperlatives();     // fire async, don't await — loads independently
+    renderWhosHot();          // Trophy Case shelf — loads from season ledger
+    renderBank();             // The Bank money race — loads from season ledger
   }
 
   const { totalTrackedRounds, playerActivity } = state.activityData || { totalTrackedRounds: 0, playerActivity: new Map() };
@@ -2213,6 +2542,7 @@ async function showPlayerModal(playerId) {
   document.getElementById('modal-player-best').textContent   = '—';
   document.getElementById('modal-history-list').innerHTML    = '<div class="loading">Loading…</div>';
   document.getElementById('player-modal').classList.add('open');
+  renderPlayerExtras(playerId); // Trophy Case + Bankroll — fire async, fills its own nodes
 
   if (!db) {
     document.getElementById('modal-history-list').innerHTML =
@@ -2413,6 +2743,7 @@ async function deleteRound(roundId) {
 
   // Reload players and re-render
   state.activityData = null;
+  state.seasonLedger = null;
   await loadPlayers();
   await renderHistory();
 }

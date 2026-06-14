@@ -76,7 +76,11 @@
         <div class="l">Best Round</div>
       </div>
     </div>
-    <div class="section-label" style="margin-top:0">Round History</div>
+    <div class="section-label" style="margin-top:0">🏆 Trophy Case</div>
+    <div id="modal-trophy-case"></div>
+    <div class="section-label">💰 Bankroll</div>
+    <div id="modal-bankroll"></div>
+    <div class="section-label">Round History</div>
     <div id="modal-history-list" style="max-height:320px;overflow-y:auto;"></div>
   </div>
 </div>
@@ -582,6 +586,17 @@
       </ul>
     </div>
 
+    <div class="card">
+      <h2>🔥 What Else Is on the Stats Tab</h2>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">Beyond the leaderboard and Season Awards, the public Stats tab has two more sections that update automatically as you finalize rounds — nothing to manage.</p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;">
+        <li><strong>Who's Hot</strong> — highlights players on an active win streak (won their last 2+ rounds), then fills in with the season's standout feats (big skins rounds, both CTPs in a day, biggest comebacks). Tap a tile to open that player.</li>
+        <li><strong>The Bank — Money Race</strong> — ranks everyone by <strong>net</strong> for the year: total winnings minus their buy-ins. Green bars are players who are up, red bars are down. The callout up top shows the biggest single-round payout anyone has won.</li>
+        <li><strong>Trophy Case &amp; Bankroll (in the player popup)</strong> — tapping any player's name now also shows the badges they've earned and their season net with a little bankroll chart.</li>
+        <li><strong>Where the money numbers come from:</strong> The Bank and the badges only count rounds with recorded payouts (skins/CTH/team winnings), which the app has tracked since March 2026. Score-only rounds before then still count toward scoring averages but not the money race.</li>
+      </ul>
+    </div>
+
     <!-- Quick reference -->
     <div class="card">
       <h2>Quick Reference</h2>
@@ -654,6 +669,20 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v1.8</span>
+          <span class="release-date">June 14, 2026</span>
+        </div>
+        <h3>The Trophy Case &amp; The Bank — Badges and the Money Race</h3>
+        <ul class="release-list">
+          <li><strong>🔥 Who's Hot</strong> — a new shelf on the Stats tab spotlights players riding an active win streak, plus the week's standout performances (skins hauls, both CTPs, biggest comebacks). Tap a tile to open that player.</li>
+          <li><strong>💰 The Bank</strong> — a season money race. Every player is ranked by <strong>net</strong> (total winnings minus buy-ins), so you can finally see who's <em>up</em> and who's <em>down</em> for the year. Includes the league's biggest single-round haul.</li>
+          <li><strong>🏆 Trophy Case in your player popup</strong> — tap any name to see the badges they've earned: <em>On Fire</em> (3+ wins in a row), <em>Skins Machine</em> (4+ skins in a round), <em>Pin Seeker</em> (both CTPs in a day), <em>Comeback Kid</em> (beat your average by the most), <em>Iron Man</em> (most rounds played), and the dreaded <em>Bankrupt</em>.</li>
+          <li><strong>Bankroll line &amp; sparkline</strong> — the player popup now shows each player's net for the season with a little chart of how their bankroll has moved round to round.</li>
+          <li>All of it is computed from rounds already tracked in the app — money-game stats reflect rounds with recorded payouts (March 2026 onward).</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v1.7</span>
@@ -781,6 +810,20 @@
       <div class="superlatives-grid" id="superlatives-grid">
         <div class="loading">Loading…</div>
       </div>
+    </div>
+
+    <!-- Who's Hot (Trophy Case shelf) -->
+    <div class="card" id="whoshot-card">
+      <h2>🔥 Who's Hot</h2>
+      <div class="superlatives-grid" id="whoshot-grid">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+
+    <!-- The Bank (season money race) -->
+    <div class="card" id="bank-card">
+      <h2>💰 The Bank — Money Race</h2>
+      <div id="bank-content"><div class="loading">Loading…</div></div>
     </div>
 
     <div class="card">
