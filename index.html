@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="WHG">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=582515cb">
+  <link rel="stylesheet" href="style.css?v=2d5d50b4">
 </head>
 <body>
 
@@ -78,8 +78,8 @@
     </div>
     <div class="section-label" style="margin-top:0">🏆 Trophy Case</div>
     <div id="modal-trophy-case"></div>
-    <div class="section-label">💰 Bankroll</div>
-    <div id="modal-bankroll"></div>
+    <div class="section-label commish-only">💰 Bankroll</div>
+    <div id="modal-bankroll" class="commish-only"></div>
     <div class="section-label">Round History</div>
     <div id="modal-history-list" style="max-height:320px;overflow-y:auto;"></div>
   </div>
@@ -588,12 +588,12 @@
 
     <div class="card">
       <h2>🔥 What Else Is on the Stats Tab</h2>
-      <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">Beyond the leaderboard and Season Awards, the public Stats tab has two more sections that update automatically as you finalize rounds — nothing to manage.</p>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">Beyond the leaderboard and Season Awards, the Stats tab has more sections that update automatically as you finalize rounds — nothing to manage.</p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
-        <li><strong>Who's Hot</strong> — highlights players on an active win streak (won their last 2+ rounds), then fills in with the season's standout feats (big skins rounds, both CTPs in a day, biggest comebacks). Tap a tile to open that player.</li>
-        <li><strong>The Bank — Money Race</strong> — ranks everyone by <strong>net</strong> for the year: total winnings minus their buy-ins. Green bars are players who are up, red bars are down. The callout up top shows the biggest single-round payout anyone has won.</li>
-        <li><strong>Trophy Case &amp; Bankroll (in the player popup)</strong> — tapping any player's name now also shows the badges they've earned and their season net with a little bankroll chart.</li>
-        <li><strong>Where the money numbers come from:</strong> The Bank and the badges only count rounds with recorded payouts (skins/CTH/team winnings), which the app has tracked since March 2026. Score-only rounds before then still count toward scoring averages but not the money race.</li>
+        <li><strong>Who's Hot (public)</strong> — highlights players on an active win streak (won their last 2+ rounds), then fills in with the season's standout feats (big skins rounds, both CTPs in a day, biggest comebacks). Tap a tile to open that player.</li>
+        <li><strong>Trophy Case (public, in the player popup)</strong> — tapping any player's name shows the badges they've earned (On Fire, Skins Machine, Pin Seeker, Comeback Kid, Iron Man).</li>
+        <li><strong>💰 The Bank — Money Race (commissioners only)</strong> — a card that appears on the Stats tab only when you're signed in as commish. It ranks everyone by <strong>net</strong> for the year (winnings minus buy-ins; green = up, red = down) and shows the biggest single-round payout. It's a handy gut-check when balancing teams, and it stays hidden from the public view. Signed-in commishes also see each player's <strong>Bankroll</strong> (net + sparkline) and a <em>Bankrupt</em> badge in the player popup.</li>
+        <li><strong>Where the money numbers come from:</strong> The Bank only counts rounds with recorded payouts (skins/CTH/team winnings), which the app has tracked since March 2026. Score-only rounds before then still count toward scoring averages but not the money race.</li>
       </ul>
     </div>
 
@@ -677,9 +677,8 @@
         <h3>The Trophy Case &amp; The Bank — Badges and the Money Race</h3>
         <ul class="release-list">
           <li><strong>🔥 Who's Hot</strong> — a new shelf on the Stats tab spotlights players riding an active win streak, plus the week's standout performances (skins hauls, both CTPs, biggest comebacks). Tap a tile to open that player.</li>
-          <li><strong>💰 The Bank</strong> — a season money race. Every player is ranked by <strong>net</strong> (total winnings minus buy-ins), so you can finally see who's <em>up</em> and who's <em>down</em> for the year. Includes the league's biggest single-round haul.</li>
-          <li><strong>🏆 Trophy Case in your player popup</strong> — tap any name to see the badges they've earned: <em>On Fire</em> (3+ wins in a row), <em>Skins Machine</em> (4+ skins in a round), <em>Pin Seeker</em> (both CTPs in a day), <em>Comeback Kid</em> (beat your average by the most), <em>Iron Man</em> (most rounds played), and the dreaded <em>Bankrupt</em>.</li>
-          <li><strong>Bankroll line &amp; sparkline</strong> — the player popup now shows each player's net for the season with a little chart of how their bankroll has moved round to round.</li>
+          <li><strong>🏆 Trophy Case in your player popup</strong> — tap any name to see the badges they've earned: <em>On Fire</em> (3+ wins in a row), <em>Skins Machine</em> (4+ skins in a round), <em>Pin Seeker</em> (both CTPs in a day), <em>Comeback Kid</em> (beat your average by the most), and <em>Iron Man</em> (most rounds played).</li>
+          <li><strong>💰 The Bank (commissioners only)</strong> — a season money race in the commish toolkit: every player ranked by <strong>net</strong> (winnings minus buy-ins), plus the league's biggest single-round haul. It's hidden from the public view and is meant as a quick gut-check when balancing teams. Commissioners also see a player's season bankroll (with a sparkline) and a <em>Bankrupt</em> badge in the player popup.</li>
           <li>All of it is computed from rounds already tracked in the app — money-game stats reflect rounds with recorded payouts (March 2026 onward).</li>
         </ul>
       </div>
@@ -820,9 +819,10 @@
       </div>
     </div>
 
-    <!-- The Bank (season money race) -->
-    <div class="card" id="bank-card">
+    <!-- The Bank (season money race) — commish-only, aids team balancing -->
+    <div class="card commish-only" id="bank-card">
       <h2>💰 The Bank — Money Race</h2>
+      <p style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.5px;color:var(--text-muted);margin:-4px 0 12px;text-transform:uppercase;">Commish-only — season net to help balance teams</p>
       <div id="bank-content"><div class="loading">Loading…</div></div>
     </div>
 
@@ -854,9 +854,9 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=582515cb"></script>
+<script src="config.js?v=2d5d50b4"></script>
 <!-- App logic -->
-<script src="app.js?v=582515cb"></script>
+<script src="app.js?v=2d5d50b4"></script>
 
 </body>
 </html>

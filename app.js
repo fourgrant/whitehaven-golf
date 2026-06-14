@@ -2227,9 +2227,11 @@ async function renderPlayerExtras(playerId) {
   tc.innerHTML = '<div class="loading">Loading…</div>';
   bk.innerHTML = '';
 
-  const ledger = await loadSeasonLedger();
-  const badges = computeBadges(ledger).get(playerId) || [];
-  const bank   = computeBank(ledger).find(p => p.id === playerId);
+  const ledger    = await loadSeasonLedger();
+  const allBadges = computeBadges(ledger).get(playerId) || [];
+  // Bankrupt is money-status info — keep it (and the Bankroll line) commish-only.
+  const badges    = state.isCommish ? allBadges : allBadges.filter(b => b.id !== 'bankrupt');
+  const bank      = state.isCommish ? computeBank(ledger).find(p => p.id === playerId) : null;
 
   tc.innerHTML = badges.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">` + badges.map(b => `
@@ -2387,8 +2389,8 @@ async function renderStats(filter) {
     state.rankChanges = computeRankChanges(state.players, lastRoundScores);
     renderLastRoundCallout(); // fire async, don't await
     renderSuperlatives();     // fire async, don't await — loads independently
-    renderWhosHot();          // Trophy Case shelf — loads from season ledger
-    renderBank();             // The Bank money race — loads from season ledger
+    renderWhosHot();          // Trophy Case shelf (public) — loads from season ledger
+    if (state.isCommish) renderBank(); // The Bank — commish-only team-balancing aid
   }
 
   const { totalTrackedRounds, playerActivity } = state.activityData || { totalTrackedRounds: 0, playerActivity: new Map() };
