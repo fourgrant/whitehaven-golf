@@ -507,7 +507,7 @@
 
       <div class="section-label">Tiebreaker</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        If two or more teams end up with the same shamble score, a <strong>Tiebreaker</strong> card appears automatically. Enter each tied team's score on hole 9 — lowest wins. If still tied, hole 8 appears, then hole 7, and so on until a winner is determined. Golf scores (including negatives) are supported. The tiebreaker result is saved and shown in the round's History card.
+        If two or more teams end up with the same shamble score, a <strong>Tiebreaker</strong> card appears automatically. Enter each tied team's score on hole 9 — lowest wins. If still tied, hole 8 appears, then hole 7, and so on until a winner is determined. Scores can be <strong>negative, zero, or positive</strong> — type a minus sign, or tap the <strong>±</strong> button beside the box to flip the sign (handy on a phone, where the number keypad has no minus key). The tiebreaker result is saved and shown in the round's History card.
       </p>
 
       <div class="section-label">Skins</div>
@@ -614,7 +614,7 @@
           </tr>
           <tr>
             <td style="font-size:13px;">Two teams are tied — now what?</td>
-            <td style="font-size:13px;color:var(--text-muted);">A Tiebreaker card appears automatically. Enter hole 9 scores for each tied team — lowest wins. If still tied, hole 8 appears, then 7, etc. Negative scores are fine.</td>
+            <td style="font-size:13px;color:var(--text-muted);">A Tiebreaker card appears automatically. Enter hole 9 scores for each tied team — lowest wins. If still tied, hole 8 appears, then 7, etc. Negative, zero, and positive scores all work — use the <strong>±</strong> button to flip the sign.</td>
           </tr>
           <tr>
             <td style="font-size:13px;">What if nobody wins a skin?</td>
@@ -671,6 +671,19 @@
     <div class="card">
       <div class="release-entry">
         <div class="release-header">
+          <span class="release-version">v1.9</span>
+          <span class="release-date">August 9, 2026</span>
+        </div>
+        <h3>Tiebreaker Accepts Negative Scores</h3>
+        <ul class="release-list">
+          <li><strong>Fixed:</strong> the Tiebreaker boxes wouldn't accept a negative score. Typing a minus sign cleared the box the instant you hit it, so anything under par was impossible to enter. Negative, zero, and positive scores all work now.</li>
+          <li><strong>New ± button</strong> beside each tiebreaker box flips the sign with one tap — the number keypad on a phone has no minus key.</li>
+          <li>The box you're typing in <strong>keeps focus</strong> while the card updates, so multi-digit entries no longer get cut off after the first keystroke.</li>
+          <li>Holes already decided are dimmed but now match the size and styling of the active boxes.</li>
+        </ul>
+      </div>
+      <div class="release-entry">
+        <div class="release-header">
           <span class="release-version">v1.8</span>
           <span class="release-date">June 14, 2026</span>
         </div>
@@ -697,6 +710,9 @@
           <li><em>Heads up:</em> with averages now app-only, players with fewer than 5 tracked rounds sit in the "Needs 5+ rounds to rank" section until they play more.</li>
         </ul>
       </div>
+    </div>
+
+    <div class="card">
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v1.6</span>

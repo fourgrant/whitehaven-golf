@@ -2986,6 +2986,10 @@ async function loadHistoryRoundData(roundId, container) {
 }
 
 // ===== TIEBREAKER =====
+// Holds the raw text of the field being typed in (e.g. a lone "-" on the way to
+// a negative score) so the re-render below can't wipe it mid-entry.
+let tbPending = null; // { key, value }
+
 function renderTiebreaker(tiedTeams, winningTeams) {
   const card = document.getElementById('tiebreaker-card');
   const content = document.getElementById('tiebreaker-content');
@@ -3017,15 +3021,19 @@ function renderTiebreaker(tiedTeams, winningTeams) {
     `;
 
     scores.forEach(({ team, score }) => {
-      const color = TEAM_COLORS[team] || 'var(--green)';
-      const disabled = resolvedHole !== null ? 'disabled style="opacity:0.4;"' : '';
+      const color  = TEAM_COLORS[team] || 'var(--green)';
+      const locked = resolvedHole !== null;
+      const border = score !== undefined && isWinnerHole ? 'var(--gold)' : 'var(--border)';
       html += `
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
           <span class="tag" style="background:${color}22;color:${color};font-size:13px;">Team ${team}</span>
-          <input type="number" inputmode="decimal" min="-20" max="20" ${disabled}
-            style="width:60px;height:44px;text-align:center;font-size:22px;font-family:'DM Mono',monospace;font-weight:500;border:2px solid ${score !== undefined && isWinnerHole ? 'var(--gold)' : 'var(--border)'};border-radius:8px;background:var(--warm-white);"
+          <input type="text" inputmode="numeric" pattern="-?[0-9]*" maxlength="4" ${locked ? 'disabled' : ''}
+            data-tb-key="${team}-${h}"
+            style="width:60px;height:44px;text-align:center;font-size:22px;font-family:'DM Mono',monospace;font-weight:500;border:2px solid ${border};border-radius:8px;background:var(--warm-white);${locked ? 'opacity:0.4;' : ''}"
             value="${score !== undefined ? score : ''}"
-            oninput="updateTiebreakerScore('${team}', ${h}, this.value)">
+            oninput="updateTiebreakerScore(this, '${team}', ${h})">
+          ${locked ? '' : `<button type="button" class="tb-sign" title="Plus / minus"
+            onclick="flipTiebreakerSign('${team}', ${h})">±</button>`}
         </div>
       `;
     });
@@ -3049,18 +3057,46 @@ function renderTiebreaker(tiedTeams, winningTeams) {
   }
 
   content.innerHTML = html;
+
+  // Put the commish back in the field they were typing in, keeping whatever raw
+  // text was there (including a bare "-" that isn't a number yet).
+  if (tbPending) {
+    const el = content.querySelector(`input[data-tb-key="${tbPending.key}"]`);
+    if (el) {
+      el.value = tbPending.value;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+    tbPending = null;
+  }
 }
 
-function updateTiebreakerScore(team, hole, val) {
-  const parsed = parseInt(val);
+function updateTiebreakerScore(el, team, hole) {
+  // Golf scores can be negative, zero, or positive — keep digits plus one leading minus.
+  const clean = el.value.replace(/[^\d-]/g, '').replace(/(?!^)-/g, '');
+  if (clean !== el.value) el.value = clean;
+
   if (!state.tiebreakerScores[team]) state.tiebreakerScores[team] = {};
+  const parsed = parseInt(clean, 10);
   if (!isNaN(parsed)) {
     state.tiebreakerScores[team][hole] = parsed;
   } else {
     delete state.tiebreakerScores[team][hole];
   }
+
+  tbPending = { key: `${team}-${hole}`, value: clean };
   saveRoundState();
   calcAndRenderPayouts();
+  tbPending = null;
+}
+
+// Flip the sign of a tiebreaker entry — the numeric keypad on phones has no minus key.
+function flipTiebreakerSign(team, hole) {
+  const el = document.querySelector(`#tiebreaker-content input[data-tb-key="${team}-${hole}"]`);
+  if (!el) return;
+  el.value = el.value.startsWith('-') ? el.value.slice(1) : '-' + el.value;
+  el.focus();
+  updateTiebreakerScore(el, team, hole);
 }
 
 // ===== RSVP =====
