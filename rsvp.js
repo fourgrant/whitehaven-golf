@@ -1,5 +1,5 @@
 /* ============================================================
-   Whitehaven Golf League — RSVP Page Logic
+   Sheila (Whitehaven Sunday League) — RSVP Page Logic
    Standalone (no app.js dependency)
    ============================================================ */
 
