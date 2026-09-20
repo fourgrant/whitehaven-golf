@@ -1,5 +1,5 @@
 /* ============================================================
-   Whitehaven Golf League — Design System
+   Sheila — Whitehaven Sunday League — Design System
    Fonts: Playfair Display / DM Mono / DM Sans
    Colors: Forest Green + Warm Gold + Cream
    ============================================================ */
@@ -42,16 +42,32 @@ header {
   z-index: 100;
 }
 
+.logo-lockup {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  cursor: default;
+}
+
 .logo {
   font-family: 'Playfair Display', serif;
   font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.5px;
+  line-height: 1;
   color: var(--gold-light);
   white-space: nowrap;
 }
 
-.logo span { color: var(--cream); font-weight: 400; }
+.logo-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #9ab5a0;
+  white-space: nowrap;
+}
 
 nav { display: flex; gap: 2px; flex-wrap: nowrap; }
 
@@ -1023,11 +1039,14 @@ body.is-commish .commish-only-flex { display: flex; }
     gap: 0;
   }
 
-  .logo {
-    font-size: 17px;
+  .logo-lockup {
     flex: 1;
-    padding: 13px 0;
+    padding: 11px 0;
   }
+
+  .logo { font-size: 17px; }
+
+  .logo-tagline { font-size: 7px; letter-spacing: 0.4px; }
 
   .header-actions { padding: 13px 0; }
 
@@ -1195,15 +1214,22 @@ body.is-commish .commish-only-flex { display: flex; }
 /* ===== RSVP PAGE ===== */
 .rsvp-header {
   background: var(--green);
+  padding: 9px 24px;
+  min-height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  border-bottom: 3px solid var(--gold);
+}
+
+.rsvp-header-title {
   color: var(--gold-light);
   font-family: 'Playfair Display', serif;
   font-size: 20px;
   font-weight: 900;
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  border-bottom: 3px solid var(--gold);
+  line-height: 1;
 }
 
 .rsvp-body {

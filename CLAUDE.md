@@ -1,4 +1,6 @@
-# Whitehaven Golf League — Claude Guide
+# Sheila (Whitehaven Sunday League) — Claude Guide
+
+The app is branded **Sheila** — "She Handles Every Invite, Leaderboard & Average" — brought to you by the Whitehaven Sunday League. "Whitehaven" alone usually refers to the golf course (DB default, form defaults); don't rename those.
 
 ## Deployment
 

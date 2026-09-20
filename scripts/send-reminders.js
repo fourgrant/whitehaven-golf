@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ============================================================
-   Whitehaven Golf League — Email Reminder Script
+   Sheila (Whitehaven Sunday League) — Email Reminder Script
    Sends 24-hour reminders to RSVPd players.
    Pure Node — no npm deps (uses built-in https).
    ============================================================ */
@@ -10,7 +10,8 @@ const https = require('https');
 const SUPABASE_URL    = process.env.SUPABASE_URL;
 const SUPABASE_KEY    = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY  = process.env.RESEND_API_KEY;
-const FROM_EMAIL      = process.env.FROM_EMAIL || 'noreply@whitehavensundayleague.com';
+// FROM_EMAIL, if set via env, should include the display name: Sheila <noreply@...>
+const FROM_EMAIL      = process.env.FROM_EMAIL || 'Sheila <noreply@whitehavensundayleague.com>';
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !RESEND_API_KEY) {
   console.error('Missing required env vars: SUPABASE_URL, SUPABASE_SERVICE_KEY, RESEND_API_KEY');
@@ -106,8 +107,9 @@ async function main() {
     for (const rsvp of rsvps) {
       const html = `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-          <div style="background:#1a3a2a;color:#e8c97a;font-size:20px;font-weight:900;padding:16px 24px;border-radius:8px 8px 0 0;border-bottom:3px solid #c9a84c;">
-            ⛳ Whitehaven Golf League
+          <div style="background:#1a3a2a;padding:16px 24px;border-radius:8px 8px 0 0;border-bottom:3px solid #c9a84c;">
+            <div style="color:#e8c97a;font-size:20px;font-weight:900;">⛳ Sheila</div>
+            <div style="color:#9ab5a0;font-size:9px;letter-spacing:0.6px;text-transform:uppercase;font-family:monospace;margin-top:2px;">brought to you by the Whitehaven Sunday League</div>
           </div>
           <div style="background:#f5f0e8;padding:24px;border-radius:0 0 8px 8px;border:1px solid #d8d0c0;border-top:none;">
             <p style="font-size:16px;margin:0 0 16px;">Hey ${rsvp.name},</p>
@@ -118,6 +120,7 @@ async function main() {
             </div>
             <p style="font-size:14px;color:#6b6b5a;margin:0;">See you tomorrow! 🏌️</p>
           </div>
+          <p style="font-size:11px;color:#6b6b5a;text-align:center;margin:12px 0 0;">Sheila · She Handles Every Invite, Leaderboard &amp; Average</p>
         </div>
       `;
 
