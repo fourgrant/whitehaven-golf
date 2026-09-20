@@ -1,5 +1,5 @@
 /* ============================================================
-   Whitehaven Golf League — App Logic
+   Sheila (Whitehaven Sunday League) — App Logic
    Stack: Vanilla JS + Supabase
    ============================================================ */
 

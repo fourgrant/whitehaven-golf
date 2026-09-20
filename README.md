@@ -1,6 +1,6 @@
-# ⛳ Whitehaven Golf League
+# ⛳ Sheila
 
-A web app for a casual 9-hole shambles golf league. Tracks teams, scores, skins, CTH bets, payouts, RSVPs, and season leaderboards.
+**S**he **H**andles **E**very **I**nvite, **L**eaderboard & **A**verage — the Whitehaven Sunday League app. Tracks teams, scores, skins, CTH bets, payouts, RSVPs, and season leaderboards for a casual 9-hole shambles golf league.
 
 **Stack:** Vanilla HTML/JS + Supabase + GitHub Pages — no build step, no framework.
 
