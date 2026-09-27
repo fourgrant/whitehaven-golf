@@ -321,6 +321,19 @@ main {
   border-color: var(--green-light);
 }
 
+.team-narrative {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: -4px 0 10px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--gold);
+  background: rgba(201, 168, 76, 0.08);
+  border-radius: 0 4px 4px 0;
+}
+
 .team-member {
   display: flex;
   align-items: center;

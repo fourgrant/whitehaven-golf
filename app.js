@@ -38,6 +38,7 @@ const state = {
   paidIn: new Set(),
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
+  teamNarratives: {}, // team letter -> one- or two-sentence story of how the team was built
   activityData: null, // { totalTrackedRounds, playerActivity: Map<playerId, offset> }
   seasonLedger: null, // cached promise → { year, roundIds, roundMeta, byPlayer } (The Bank + Trophy Case)
 };
@@ -74,6 +75,7 @@ function saveRoundState() {
     holeWinners: state.holeWinners,
     cthWinners: state.cthWinners,
     tiebreakerScores: state.tiebreakerScores,
+    teamNarratives: state.teamNarratives,
   };
   showSavingStatus();
   debounce('roundState', async () => {
@@ -412,6 +414,7 @@ async function loadCurrentRound() {
     state.holeWinners      = data.round_state.holeWinners      || {};
     state.cthWinners       = data.round_state.cthWinners       || { hole2: null, hole5: null };
     state.tiebreakerScores = data.round_state.tiebreakerScores || {};
+    state.teamNarratives   = data.round_state.teamNarratives   || {};
   }
   // Sync team scores from DB (source of truth over localStorage)
   if (data.team_scores && Object.keys(data.team_scores).length) {
@@ -541,6 +544,7 @@ function clearActiveRound() {
   state.teamScores      = {};
   state.holeWinners     = {};
   state.cthWinners      = { hole2: null, hole5: null };
+  state.teamNarratives  = {};
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
@@ -688,6 +692,7 @@ function togglePlayer(playerId, checked) {
     persistCheckIn(playerId);
   } else {
     state.checkedIn.delete(playerId);
+    markNarrativeAdjusted(state.teamAssignments[playerId]);
     delete state.teamAssignments[playerId];
     persistCheckOut(playerId);
   }
@@ -698,9 +703,21 @@ function togglePlayer(playerId, checked) {
 }
 
 function assignTeam(playerId, team) {
+  const prev = state.teamAssignments[playerId];
   state.teamAssignments[playerId] = team;
+  markNarrativeAdjusted(prev);
+  markNarrativeAdjusted(team);
   persistTeamAssignment(playerId);
   renderTeamPreview();
+}
+
+// A hand edit after balancing makes the auto-generated story stale — say so rather than hide it.
+const NARRATIVE_ADJUSTED = 'Adjusted by hand after balancing.';
+function markNarrativeAdjusted(team) {
+  if (!team || !state.teamNarratives[team]) return;
+  if (state.teamNarratives[team].includes(NARRATIVE_ADJUSTED)) return;
+  state.teamNarratives[team] += ' ' + NARRATIVE_ADJUSTED;
+  saveRoundState();
 }
 
 function renderTeamPreview() {
@@ -715,7 +732,8 @@ function renderTeamPreview() {
 
   const teamEntries = Object.entries(teams).sort();
   const copyText = teamEntries.map(([t, players]) =>
-    `Team ${t}\n` + players.map(p => p.name).join('\n')
+    `Team ${t}\n` + players.map(p => p.name).join('\n') +
+    (state.teamNarratives[t] ? `\n— ${state.teamNarratives[t]}` : '')
   ).join('\n\n');
 
   container.innerHTML =
@@ -730,6 +748,7 @@ function renderTeamPreview() {
             <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
             <span class="team-score-badge">avg ${teamAvg}</span>
           </div>
+          ${renderTeamNarrative(t)}
           ${players.map(p => `
             <div class="team-member">
               <span class="member-name">${p.name}</span>
@@ -769,17 +788,6 @@ function getTeamGroupsByPlayerId() {
 
 // ===== TEAM BALANCING =====
 
-function applySnakeDraft(players, numTeams) {
-  const assignments = {};
-  players.forEach((p, i) => {
-    const round   = Math.floor(i / numTeams);
-    const pos     = i % numTeams;
-    const teamIdx = round % 2 === 0 ? pos : numTeams - 1 - pos;
-    assignments[p.id] = TEAMS[teamIdx];
-  });
-  return assignments;
-}
-
 // Builds units: active pair groups become one entry; remaining players are individual entries.
 function buildBalanceUnits(checkedIds) {
   const usedIds = new Set();
@@ -790,13 +798,13 @@ function buildBalanceUnits(checkedIds) {
       .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 });
     if (members.length >= 2) {
       const avg = members.reduce((s, p) => s + (parseFloat(p.avg_score) || 40), 0) / members.length;
-      units.push({ players: members, avg });
+      units.push({ players: members, avg, pair: true });
       members.forEach(p => usedIds.add(p.id));
     }
   }
   checkedIds.filter(id => !usedIds.has(id)).forEach(id => {
     const p = state.players.find(x => x.id === id) || { id, avg_score: 40 };
-    units.push({ players: [p], avg: parseFloat(p.avg_score) || 40 });
+    units.push({ players: [p], avg: parseFloat(p.avg_score) || 40, pair: false });
   });
   return units;
 }
@@ -815,9 +823,12 @@ function computeTeamSizes(total, numTeams) {
   return Array.from({ length: numTeams }, (_, i) => (i < extras ? 4 : 3));
 }
 
-// Greedy assignment: strongest units go to teams that need them most (highest current avg).
-// Used when pair groups are present since groups have variable sizes.
-function assignUnitsGreedy(units, numTeams) {
+// Greedy assignment: walk the units strongest-first and send each one to the team
+// that currently has the highest (weakest) average and still has room.
+// Empty teams count as needing infinite help, so they fill first.
+// `trace` (optional array) receives one entry per placement so the narrative can
+// explain each decision.
+function assignUnitsGreedy(units, numTeams, trace) {
   const total   = units.reduce((s, u) => s + u.players.length, 0);
   const targets = computeTeamSizes(total, numTeams);
   const sizes   = Array(numTeams).fill(0);
@@ -826,19 +837,30 @@ function assignUnitsGreedy(units, numTeams) {
   const sorted = [...units].sort((a, b) => a.avg - b.avg); // strongest (lowest) first
   for (const unit of sorted) {
     let best = -1, bestAvg = -Infinity;
+    const skipped = [];
     for (let t = 0; t < numTeams; t++) {
-      if (sizes[t] + unit.players.length > targets[t]) continue;
+      if (sizes[t] + unit.players.length > targets[t]) { skipped.push(TEAMS[t]); continue; }
       const cur = sizes[t] ? totals[t] / sizes[t] : Infinity; // empty team = infinite need
       if (cur > bestAvg) { bestAvg = cur; best = t; }
     }
     // Fallback: pair group too large for any team's remaining slots → team with most room
+    let overflow = false;
     if (best === -1) {
+      overflow = true;
       let maxRem = -Infinity;
       for (let t = 0; t < numTeams; t++) {
         const rem = targets[t] - sizes[t];
         if (rem > maxRem) { maxRem = rem; best = t; }
       }
     }
+    if (trace) trace.push({
+      unit,
+      team: TEAMS[best],
+      wasEmpty: sizes[best] === 0,
+      teamAvgBefore: sizes[best] ? totals[best] / sizes[best] : null,
+      skipped,
+      overflow,
+    });
     unit.players.forEach(p => {
       assignments[p.id] = TEAMS[best];
       sizes[best]++;
@@ -848,64 +870,156 @@ function assignUnitsGreedy(units, numTeams) {
   return assignments;
 }
 
-function hasPairings(checkedIds) {
-  return state.pairGroups.some(g => g.filter(id => checkedIds.includes(id)).length >= 2);
-}
-
-function autoBalance() {
+function runBalancer(method) {
   const checkedIds = [...state.checkedIn];
   if (!checkedIds.length) { toast('Check in players first!'); return; }
 
   const numTeams = Math.min(Math.ceil(checkedIds.length / 4), TEAMS.length);
-  let assignments;
-
-  if (hasPairings(checkedIds)) {
-    assignments = assignUnitsGreedy(buildBalanceUnits(checkedIds), numTeams);
-  } else {
-    const sorted = checkedIds
-      .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
-      .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
-    assignments = applySnakeDraft(sorted, numTeams);
+  const units = buildBalanceUnits(checkedIds);
+  if (method === 'shuffle') {
+    // Small jitter keeps pairings and overall balance but varies who lands where
+    units.forEach(u => { u.jitter = (Math.random() - 0.5) * 4; u.avg += u.jitter; });
   }
+  const trace = [];
+  const assignments = assignUnitsGreedy(units, numTeams, trace);
 
   Object.assign(state.teamAssignments, assignments);
+  state.teamNarratives = buildTeamNarratives(trace, assignments, checkedIds, method);
   persistTeamAssignmentsBulk();
+  saveRoundState();
   renderPlayerAssignList();
   renderTeamPreview();
-  toast('Teams balanced by scoring average!');
+  toast(method === 'shuffle' ? 'Teams reshuffled!' : 'Teams balanced by scoring average!');
 }
 
-function shuffleTeams() {
-  const checkedIds = [...state.checkedIn];
-  if (!checkedIds.length) { toast('Check in players first!'); return; }
+function autoBalance()  { runBalancer('balance'); }
+function shuffleTeams() { runBalancer('shuffle'); }
 
-  const numTeams = Math.min(Math.ceil(checkedIds.length / 4), TEAMS.length);
-  let assignments;
+// ===== TEAM NARRATIVES =====
+// Turns the balancer's placement trace into a short, plain-English story per team.
 
-  if (hasPairings(checkedIds)) {
-    const units = buildBalanceUnits(checkedIds);
-    // Small jitter keeps pairings but varies the result
-    units.forEach(u => { u.avg += (Math.random() - 0.5) * 4; });
-    assignments = assignUnitsGreedy(units, numTeams);
-  } else {
-    const sorted = checkedIds
-      .map(id => state.players.find(p => p.id === id) || { id, avg_score: 40 })
-      .sort((a, b) => (parseFloat(a.avg_score) || 40) - (parseFloat(b.avg_score) || 40));
-    // Shuffle within each skill tier to vary teams while preserving balance
-    for (let i = 0; i < sorted.length; i += numTeams) {
-      for (let j = Math.min(i + numTeams, sorted.length) - 1; j > i; j--) {
-        const k = i + Math.floor(Math.random() * (j - i + 1));
-        [sorted[j], sorted[k]] = [sorted[k], sorted[j]];
+function playerAvg(p) { return parseFloat(p.avg_score) || 40; }
+function fmtAvg(n)    { return n.toFixed(1); }
+function listNames(names) {
+  if (names.length <= 1) return names.join('');
+  return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+}
+function ordinalWord(n) {
+  const words = ['', 'lowest', 'second-lowest', 'third-lowest', 'fourth-lowest', 'fifth-lowest', 'sixth-lowest'];
+  return words[n] || `${n}th-lowest`;
+}
+function describeGap(teamAvg, fieldAvg) {
+  const d = teamAvg - fieldAvg;
+  if (Math.abs(d) < 0.25) return 'right on';
+  if (d < -0.75) return 'well under';
+  if (d < 0) return 'a hair under';
+  if (d > 0.75) return 'well over';
+  return 'a hair over';
+}
+
+function buildTeamNarratives(trace, assignments, checkedIds, method) {
+  const field = checkedIds.map(id => state.players.find(p => p.id === id) || { id, name: 'Guest', avg_score: 40 });
+  if (!field.length) return {};
+  const fieldAvg = field.reduce((s, p) => s + playerAvg(p), 0) / field.length;
+  const ranked = [...field].sort((a, b) => playerAvg(a) - playerAvg(b));
+  const rankOf = p => ranked.findIndex(x => x.id === p.id) + 1;
+  const shuffled = method === 'shuffle';
+
+  const teams = {};
+  field.forEach(p => {
+    const t = assignments[p.id];
+    if (!t) return;
+    (teams[t] = teams[t] || []).push(p);
+  });
+
+  const out = {};
+  for (const [t, members] of Object.entries(teams)) {
+    const teamAvg = members.reduce((s, p) => s + playerAvg(p), 0) / members.length;
+    const placements = trace.filter(e => e.team === t);
+    const first = placements[0];
+    const later = placements.slice(1);
+    const sentences = [];
+
+    if (!first) {
+      out[t] = '';
+      continue;
+    }
+
+    // Sentence 1 — how the core of the team was chosen.
+    if (first.unit.pair) {
+      const names = first.unit.players.map(p => p.name);
+      sentences.push(`${listNames(names)} asked to ride together, so they went in as one unit averaging ${fmtAvg(first.unit.avg - (first.unit.jitter || 0))}${first.wasEmpty ? '' : ` and landed on the team that needed the most help`}.`);
+    } else {
+      const anchor = first.unit.players[0];
+      const rank = rankOf(anchor);
+      const hasAvg = !!parseFloat(anchor.avg_score);
+      const avgText = hasAvg ? fmtAvg(playerAvg(anchor)) : 'no average yet, counted as 40';
+      const rankText = hasAvg ? `the ${ordinalWord(rank)} average in today's field` : `a new face in today's field`;
+      if (shuffled) {
+        sentences.push(`The shuffle dealt ${anchor.name} (${avgText}) here first, ${rankText}.`);
+      } else if (first.wasEmpty) {
+        sentences.push(`Anchored by ${anchor.name} (${avgText}), ${rankText}.`);
+      } else {
+        sentences.push(`${anchor.name} (${avgText}) was the strongest player still on the board when Team ${t} was trailing, so the balancer sent ${anchor.name.split(' ')[0]} here.`);
       }
     }
-    assignments = applySnakeDraft(sorted, numTeams);
-  }
 
-  Object.assign(state.teamAssignments, assignments);
-  persistTeamAssignmentsBulk();
-  renderPlayerAssignList();
-  renderTeamPreview();
-  toast('Teams reshuffled!');
+    // Sentence 2 — who filled it out and where it landed against the field.
+    const laterNames = later.flatMap(e => e.unit.players.map(p => p.name));
+    const gap = describeGap(teamAvg, fieldAvg);
+    if (laterNames.length) {
+      const pairLater = later.find(e => e.unit.pair);
+      let who;
+      if (pairLater) {
+        const pairNames = pairLater.unit.players.map(p => p.name);
+        const others = laterNames.filter(n => !pairNames.includes(n));
+        who = `${listNames(pairNames)} came as a pair${others.length ? `, with ${listNames(others)} alongside` : ''},`;
+      } else {
+        // Rotate the phrasing by team so four cards don't all read the same.
+        const fills = [
+          'came next as the balancer kept feeding whichever team was trailing',
+          'were dealt in on later passes to pull the average back in line',
+          'rounded it out once the stronger names were off the board',
+          'filled the remaining slots as the field thinned out',
+        ];
+        const idx = TEAMS.indexOf(t) % fills.length;
+        who = `${listNames(laterNames)} ${fills[idx < 0 ? 0 : idx]},`;
+      }
+      sentences.push(`${who} landing the team at ${fmtAvg(teamAvg)}, ${gap} the ${fmtAvg(fieldAvg)} field average.`);
+    } else {
+      sentences.push(`That puts the team at ${fmtAvg(teamAvg)}, ${gap} the ${fmtAvg(fieldAvg)} field average.`);
+    }
+
+    // Optional flavor — soft numbers or lots of mileage. One or the other, never both.
+    const rookies = members.filter(p => p.rounds_played !== undefined && p.rounds_played !== null && p.rounds_played <= 3 && !String(p.id).startsWith('guest-'));
+    const guests  = members.filter(p => String(p.id).startsWith('guest-'));
+    const vets    = members.filter(p => (p.rounds_played || 0) >= 30);
+    if (guests.length) {
+      sentences.push(`${listNames(guests.map(p => p.name))} ${guests.length > 1 ? 'are guests' : 'is a guest'} with no history, so that average is a guess.`);
+    } else if (rookies.length) {
+      sentences.push(`${listNames(rookies.map(p => p.name))} ${rookies.length > 1 ? 'have' : 'has'} 3 or fewer rounds on record, so that average is a soft number.`);
+    } else if (vets.length >= 2) {
+      sentences.push(`Plenty of mileage here: ${listNames(vets.map(p => `${p.name} (${p.rounds_played})`))} have the most rounds on the team.`);
+    }
+
+    if (placements.some(e => e.overflow)) {
+      sentences.push('A pairing was too big for the open slots, so this team took the overflow.');
+    }
+
+    out[t] = sentences.join(' ');
+  }
+  return out;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function renderTeamNarrative(team) {
+  const text = state.teamNarratives[team];
+  return text ? `<p class="team-narrative">${escapeHtml(text)}</p>` : '';
 }
 
 // ===== PAIRINGS =====
@@ -1286,6 +1400,7 @@ function renderTeamScoreCards() {
             : `<span class="team-score-badge" id="tbadge-${t}">${manualScore ?? '—'}</span>`
           }
         </div>
+        ${renderTeamNarrative(t)}
         <div class="section-label" style="font-size:10px;margin:8px 0 4px;">Individual Scores</div>
         ${rps.map(rp => `
           <div class="team-member">
@@ -1716,6 +1831,7 @@ async function finalizeRound() {
   state.teamScores      = {};
   state.holeWinners     = {};
   state.cthWinners      = { hole2: null, hole5: null };
+  state.teamNarratives  = {};
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
@@ -2880,6 +2996,7 @@ async function loadHistoryRoundData(roundId, container) {
   `;
 
   const savedTeamScores = round?.team_scores || {};
+  const savedNarratives = round?.round_state?.teamNarratives || {};
   Object.entries(teams).sort().forEach(([t, tRps]) => {
     const isWin = winTeams.includes(t);
     const tScore = savedTeamScores[t];
@@ -2889,6 +3006,7 @@ async function loadHistoryRoundData(roundId, container) {
           <span class="team-label" style="color:${TEAM_COLORS[t] || 'var(--green)'}">Team ${t}</span>
           ${tScore != null ? `<span class="team-score-badge${isWin ? ' winner' : ''}">${isWin ? '🏆 ' : ''}${tScore}</span>` : (isWin ? `<span class="team-score-badge winner">🏆</span>` : '')}
         </div>
+        ${savedNarratives[t] ? `<p class="team-narrative">${escapeHtml(savedNarratives[t])}</p>` : ''}
         ${tRps.map(rp => `
           <div class="team-member">
             <span class="member-name">${rp.players?.name || '?'}</span>

@@ -467,10 +467,17 @@
         You have three options:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
-        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Teams are always 3- or 4-man (or a mix), distributed as evenly as the headcount allows. Best for most weeks.</li>
-        <li><strong>Shuffle</strong> — click <em>🔀 Shuffle</em> to re-roll teams. Same checked-in players, different combinations, balance preserved by skill tier. Click again until you like the look of it.</li>
+        <li><strong>Auto-Balance</strong> — click <em>⚖ Auto-Balance</em> to split players into even teams based on scoring averages. Sheila lines everyone up from lowest average to highest, then hands each player to whichever team currently has the weakest average and still has room (empty teams fill first). Teams are always 3- or 4-man (or a mix), distributed as evenly as the headcount allows. Best for most weeks.</li>
+        <li><strong>Shuffle</strong> — click <em>🔀 Shuffle</em> to re-roll teams. Same recipe as Auto-Balance with a little luck mixed in, so the teams stay close but the faces change. Click again until you like the look of it.</li>
         <li><strong>Manual</strong> — use each player's dropdown to assign them to a team letter (A, B, C…). Use this when you want full control.</li>
       </ul>
+      <div class="section-label">Team stories</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        After Auto-Balance or Shuffle, each team card carries a short <strong>story</strong> explaining how that team came together: who anchored it, who was added to even it out, and where it landed against the day's field average. Pairings, guests, and players with only a few rounds on record get a mention. The stories are included when you <em>Copy Teams</em>, so they paste straight into the group text.
+      </p>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+        If you change a team letter by hand afterward, the affected stories get an "Adjusted by hand after balancing" note rather than pretending the balancer chose it. Teams built entirely by hand have no story. Stories are saved with the round and show up on the Scores tab and in History.
+      </p>
       <div class="section-label">Play-together requests</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
         Sometimes a few players want to be on the same team (e.g. visiting friends, a couple, a buddy group). Use <strong>Play-Together Requests</strong>:
@@ -672,6 +679,19 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.1</span>
+          <span class="release-date">September 27, 2026</span>
+        </div>
+        <h3>Team Stories &amp; a Fairer Balancer</h3>
+        <ul class="release-list">
+          <li><strong>Every team gets a story.</strong> After Auto-Balance or Shuffle, each team card explains in a sentence or two how it was built: who anchored it, who was added to even it out, and where it landed against the field average. Pairings, guests, and players with only a few rounds on record are called out.</li>
+          <li>Stories are saved with the round, appear on the Scores tab and in History, and are included in <em>Copy Teams</em>.</li>
+          <li>Hand-editing a team letter after balancing adds an "Adjusted by hand after balancing" note to the affected teams instead of leaving a stale story.</li>
+          <li><strong>Snake draft retired.</strong> Auto-Balance and Shuffle now always use the same "help the weakest team" balancer that pairings already used. In testing across thousands of random fields it cut the gap between the strongest and weakest team roughly in half at most headcounts, and it no longer hands Team A the best player every single week.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.0</span>
