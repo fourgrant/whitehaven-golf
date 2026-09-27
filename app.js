@@ -35,6 +35,7 @@ const state = {
   holeWinners: {},        // hole# (1-9) -> rpId
   cthWinners: { hole2: null, hole5: null }, // rpId per CTH hole
   tiebreakerScores: {},   // team -> hole# -> score
+  holeScores: {},         // rpId -> [9 hole scores] when a scorecard was uploaded
   paidIn: new Set(),
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
@@ -76,6 +77,7 @@ function saveRoundState() {
     cthWinners: state.cthWinners,
     tiebreakerScores: state.tiebreakerScores,
     teamNarratives: state.teamNarratives,
+    holeScores: state.holeScores,
   };
   showSavingStatus();
   debounce('roundState', async () => {
@@ -415,6 +417,7 @@ async function loadCurrentRound() {
     state.cthWinners       = data.round_state.cthWinners       || { hole2: null, hole5: null };
     state.tiebreakerScores = data.round_state.tiebreakerScores || {};
     state.teamNarratives   = data.round_state.teamNarratives   || {};
+    state.holeScores       = data.round_state.holeScores       || {};
   }
   // Sync team scores from DB (source of truth over localStorage)
   if (data.team_scores && Object.keys(data.team_scores).length) {
@@ -543,6 +546,7 @@ function clearActiveRound() {
   state.scores          = {};
   state.teamScores      = {};
   state.holeWinners     = {};
+  state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
   state.paidIn          = new Set();
@@ -1830,6 +1834,7 @@ async function finalizeRound() {
   state.scores          = {};
   state.teamScores      = {};
   state.holeWinners     = {};
+  state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
   state.paidIn          = new Set();

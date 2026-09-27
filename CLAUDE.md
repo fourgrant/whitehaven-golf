@@ -31,6 +31,9 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 
 - `index.html` — app shell (6 tabs, 2 modals)
 - `app.js` — all logic; Supabase integration, all page renders
+- `scorecard.js` — scorecard photo upload: reads cards via the `read-scorecard` edge function, review UI, applies teams/scores/skins
+- `supabase/functions/read-scorecard/index.ts` — Supabase Edge Function; holds the Anthropic key, calls Claude with the photo, returns structured JSON
+- `test/scorecard-fixture.json` — hand-read of six real cards; load in the app with `?demo=scorecards` to test the flow without the API
 - `style.css` — design system (Playfair Display / DM Mono / DM Sans)
 - `rsvp.html` / `rsvp.js` — standalone RSVP page
 - `config.js` — **gitignored**; injected by GitHub Actions from secrets; copy `config.example.js` for local dev
