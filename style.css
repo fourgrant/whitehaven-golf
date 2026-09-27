@@ -1350,3 +1350,56 @@ body.is-commish .commish-only-flex { display: flex; }
 
 .release-list li { margin-bottom: 4px; }
 .release-list li strong { color: var(--text); }
+
+/* ===== Scorecard upload ===== */
+.modal-box.modal-xl { max-width: 960px; max-height: 92vh; overflow-y: auto; }
+.sc-drop {
+  display: flex; align-items: center; gap: 14px; cursor: pointer;
+  padding: 18px 16px; border: 2px dashed var(--border); border-radius: 10px;
+  background: var(--warm-white); transition: border-color .15s;
+}
+.sc-drop:hover { border-color: var(--green-light); }
+.sc-drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.sc-drop-icon { font-size: 28px; }
+.sc-drop-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.sc-drop-text strong { color: var(--text); }
+.sc-progress { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--green); padding: 10px 0; }
+.sc-error { background: #faeaea; color: var(--red); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 8px 0; line-height: 1.5; }
+.sc-card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-top: 14px; background: white; }
+.sc-card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.sc-thumb { width: 72px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in; flex-shrink: 0; }
+.sc-thumb-empty { display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-muted); background: var(--warm-white); cursor: default; }
+.sc-card-meta { flex: 1; min-width: 0; }
+.sc-card-title { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 16px; color: var(--green); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-letter { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--warm-white); }
+.sc-team-score { font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-team-input { width: 56px; }
+.sc-notes { margin-top: 4px; }
+.sc-muted { font-size: 12px; color: var(--text-muted); }
+.sc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sc-table { border-collapse: collapse; font-size: 13px; min-width: 640px; width: 100%; }
+.sc-table th { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; color: var(--text-muted); text-align: center; padding: 4px 2px; letter-spacing: .5px; }
+.sc-table th .sc-par { display: block; font-size: 9px; color: #b8b0a0; }
+.sc-table td { padding: 3px 2px; text-align: center; border-top: 1px solid var(--border); vertical-align: middle; }
+.sc-table td.sc-name { text-align: left; font-family: 'DM Mono', monospace; font-size: 12px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-table td.sc-player select { max-width: 150px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--warm-white); }
+.sc-hole, .sc-total { width: 34px; padding: 4px 2px; text-align: center; border: 1px solid var(--border); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 13px; background: var(--warm-white); }
+.sc-hole::-webkit-outer-spin-button, .sc-hole::-webkit-inner-spin-button, .sc-total::-webkit-outer-spin-button, .sc-total::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sc-hole, .sc-total { -moz-appearance: textfield; }
+.sc-total { width: 44px; font-weight: 600; }
+.sc-hole-missing { border-color: var(--gold); background: #fdf3d8; }
+.sc-flags { text-align: left; white-space: nowrap; }
+.sc-row-skip td { opacity: .4; }
+.sc-flag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 10px; margin: 2px 0; }
+.sc-flag-bad  { background: #faeaea; color: var(--red); }
+.sc-flag-warn { background: #fdf3d8; color: #8a6a10; }
+.sc-flag-ok   { background: #e6f2ea; color: var(--green); }
+.sc-link { background: none; border: none; color: var(--green); text-decoration: underline; cursor: pointer; font-size: 11px; padding: 0 2px; }
+.sc-summary .sc-card-title { margin-bottom: 6px; }
+.sc-skins { padding-left: 18px; font-size: 13px; line-height: 1.8; margin: 4px 0 8px; }
+.sc-check { display: block; font-size: 13px; margin-top: 6px; cursor: pointer; }
+.sc-check input { margin-right: 6px; }
+@media (max-width: 600px) {
+  .modal-box.modal-xl { padding: 20px 12px; }
+  .sc-thumb { width: 56px; height: 74px; }
+}

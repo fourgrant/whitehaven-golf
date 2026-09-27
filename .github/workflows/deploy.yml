@@ -24,8 +24,9 @@ jobs:
         run: |
           SHA="${{ github.sha }}"
           V="${SHA:0:8}"
-          # Append commit SHA to app.js, style.css, config.js, rsvp.js so browsers always get fresh files
+          # Append commit SHA to app.js, scorecard.js, style.css, config.js, rsvp.js so browsers always get fresh files
           sed -i "s|src=\"app\.js\"|src=\"app.js?v=$V\"|g" index.html
+          sed -i "s|src=\"scorecard\.js\"|src=\"scorecard.js?v=$V\"|g" index.html
           sed -i "s|src=\"config\.js\"|src=\"config.js?v=$V\"|g" index.html rsvp.html
           sed -i "s|src=\"rsvp\.js\"|src=\"rsvp.js?v=$V\"|g" rsvp.html
           sed -i "s|href=\"style\.css\"|href=\"style.css?v=$V\"|g" index.html rsvp.html

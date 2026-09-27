@@ -1,0 +1,71 @@
+{
+  "_comment": "Hand-read of the six Whitehaven scorecards from 9/27/2026. Same shape the read-scorecard function returns. Load in the app with ?demo=scorecards to test the review flow without the API.",
+  "cards": [
+    {
+      "players": [
+        { "name_as_written": "Steve", "holes": [7, 3, 5, 7, 4, 5, 6, 5, 4], "total_written": 46, "confidence": "high" },
+        { "name_as_written": "John",  "holes": [7, 3, 6, 5, 4, 4, 5, 5, 5], "total_written": 44, "confidence": "medium" },
+        { "name_as_written": "Lee",   "holes": [5, 3, 4, 5, 4, 5, 4, 5, 4], "total_written": 39, "confidence": "high" },
+        { "name_as_written": "Larry", "holes": [7, 3, 4, 5, 4, 4, 4, 5, 5], "total_written": 41, "confidence": "high" }
+      ],
+      "team_row": { "values": [4, null, 5, null, 8, 9, 10, 13, 14], "final_written": 14 },
+      "legibility": "good",
+      "notes": "John's hole 4 was overwritten; read as 5."
+    },
+    {
+      "players": [
+        { "name_as_written": "Randy", "holes": [6, 3, 4, 4, 3, 5, 3, 3, 4], "total_written": 35, "confidence": "high" },
+        { "name_as_written": "Bryan", "holes": [8, 3, 5, 7, 3, 4, 7, 5, 5], "total_written": 47, "confidence": "high" },
+        { "name_as_written": "Stu",   "holes": [6, 4, 4, 6, 3, 4, 5, 3, 5], "total_written": 40, "confidence": "high" },
+        { "name_as_written": "Bent",  "holes": [6, 2, 4, 7, 3, 5, 6, 4, 6], "total_written": 43, "confidence": "medium" }
+      ],
+      "team_row": { "values": [3, 2, 2, 4, 4, 5, 7, 5, 4], "final_written": 4 },
+      "legibility": "fair",
+      "notes": "Last two cells of the Team row are scribbled; the final value could be +4 or +7."
+    },
+    {
+      "players": [
+        { "name_as_written": "Arthur", "holes": [4, 2, 4, 7, 2, 4, 5, 3, 4], "total_written": 35, "confidence": "medium" },
+        { "name_as_written": "Chip",   "holes": [6, 2, 6, 7, 3, 5, 5, 4, 5], "total_written": 43, "confidence": "high" },
+        { "name_as_written": "T$",     "holes": [5, 3, 5, 6, 3, 4, 4, 4, 4], "total_written": 38, "confidence": "high" },
+        { "name_as_written": "Nathan", "holes": [5, 2, 6, 7, 3, 6, 4, 5, 5], "total_written": 43, "confidence": "high" }
+      ],
+      "team_row": { "values": [-1, -4, -1, 4, 3, 4, 6, 5, 6], "final_written": 6 },
+      "legibility": "good",
+      "notes": "Arthur's hole 1 is circled and partly smudged; read as 4."
+    },
+    {
+      "players": [
+        { "name_as_written": "Bill",  "holes": [5, 3, 5, 5, 3, 5, 4, 6, 4], "total_written": 40, "confidence": "high" },
+        { "name_as_written": "Ricky", "holes": [7, 3, 5, 5, 4, 6, 4, 5, 5], "total_written": 44, "confidence": "medium" },
+        { "name_as_written": "Robby", "holes": [5, 3, 6, 5, 4, 5, 5, 4, 4], "total_written": 41, "confidence": "high" },
+        { "name_as_written": "Robin", "holes": [6, 3, 5, 4, 3, 4, 4, 4, 4], "total_written": null, "confidence": "medium" }
+      ],
+      "team_row": { "values": [1, 1, 4, 3, 4, 6, 6, 7, 7], "final_written": 7 },
+      "legibility": "fair",
+      "notes": "Robin's Out total is scribbled out. Ricky's hole 3 was overwritten; read as 5."
+    },
+    {
+      "players": [
+        { "name_as_written": "Colin", "holes": [6, 4, 5, 7, 5, 3, 5, 5, 6], "total_written": 45, "confidence": "medium" },
+        { "name_as_written": "Joe",   "holes": [6, 4, 5, 5, 5, 5, 5, 5, 4], "total_written": 44, "confidence": "high" },
+        { "name_as_written": "Will",  "holes": [5, 4, 4, 5, 5, 4, 6, 4, 5], "total_written": 42, "confidence": "high" },
+        { "name_as_written": "Dick",  "holes": [5, 3, 4, 5, 3, 4, 6, 4, 4], "total_written": 38, "confidence": "high" }
+      ],
+      "team_row": { "values": [1, 3, 4, null, 8, 7, 11, 12, null], "final_written": 12 },
+      "legibility": "fair",
+      "notes": "Colin's first four cells are heavily boxed over. The running row stops at hole 8."
+    },
+    {
+      "players": [
+        { "name_as_written": "William", "holes": [5, 3, 4, 5, 3, 4, 4, 3, 4], "total_written": 35, "confidence": "high" },
+        { "name_as_written": "Burton",  "holes": [5, 3, 6, 5, 3, 5, 4, 4, 5], "total_written": 40, "confidence": "high" },
+        { "name_as_written": "Andy",    "holes": [7, 3, 3, 6, 3, 5, 3, 4, 6], "total_written": 39, "confidence": "medium" },
+        { "name_as_written": "Wade",    "holes": [8, 4, 5, 5, 4, 4, 5, 4, 5], "total_written": 44, "confidence": "medium" }
+      ],
+      "team_row": { "values": [2, 2, 2, 2, 2, 3, 2, 1, 3], "final_written": 3 },
+      "legibility": "good",
+      "notes": "Wade's hole 1 was overwritten (6 or 8); read as 8. Card is marked x3 at the top."
+    }
+  ]
+}

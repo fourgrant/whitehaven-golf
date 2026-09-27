@@ -31,6 +31,10 @@
 
 ### During the round — enter scores
 
+**Fastest way:** photograph each group's paper card and tap **📷 Upload Scorecards** (on the Teams tab before teams are locked, or on the Scores tab after). Sheila reads the names and every hole, matches players to the roster, computes each team's best-3-of-4 shamble score from the holes, suggests skins, and shows you a review screen before anything is saved. See [Scorecard reading](#9-scorecard-reading-optional) to set it up.
+
+**By hand:**
+
 1. Go to the **Scores** tab
 2. Enter each player's individual 9-hole stroke total in their row — scores auto-save as you type (no Save button needed)
 3. Enter each **team's combined shamble score** in the Team Score boxes at the top
@@ -122,6 +126,24 @@ python3 -m http.server 8000
 ```
 
 ---
+
+### 9. Scorecard reading (optional)
+
+The **📷 Upload Scorecards** button sends each photo to a small Supabase Edge Function (`supabase/functions/read-scorecard`) that asks Claude to read the card and returns structured JSON. The Anthropic key lives only in that function, never in the browser. One card costs a few cents to read.
+
+```bash
+npm install -g supabase            # or brew install supabase/tap/supabase
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase functions deploy read-scorecard
+```
+
+Nothing else changes: the app calls the function through the Supabase client with the anon key it already has. Until the function is deployed, the upload button reports the error it got back.
+
+**Trying the flow without the API:** open the app with `?demo=scorecards` and the upload dialog gains a *Load sample cards* button that loads `test/scorecard-fixture.json`, a hand-read of six real cards from 9/27/2026. It walks the same review and apply path, so you can see check-in, teams, scores, and skins land without spending anything.
+
+**What the reader expects:** one photo per card, the whole card in frame, taken roughly straight on. It reads the handwritten player rows (above and below the printed PAR row), the Out column, and the +/- running row at the bottom. Circles and boxes around numbers are ignored. It reports what is written and does not fix arithmetic; the review screen does the cross-checks.
 
 ## How it works
 
@@ -215,6 +237,9 @@ Opening that URL takes you directly to the History tab with that round expanded.
 ├── README.md
 ├── scripts/
 │   └── send-reminders.js   ← Node script: sends day-before reminder emails
+├── scorecard.js            ← Upload Scorecards: photo → review → teams/scores/skins
+├── supabase/functions/read-scorecard/index.ts  ← Edge Function that asks Claude to read a card
+├── test/scorecard-fixture.json  ← Six real cards, hand-read, for ?demo=scorecards
 ├── supabase/
 │   └── schema.sql          ← Tables, RLS policies, seed data
 └── .github/
