@@ -526,7 +526,7 @@
         <strong style="color:var(--text);">Guest players</strong> — use the <em>+ Add Guest</em> button to add a walk-up player who isn't in the roster. Guests are included in team math for the day but don't affect the permanent stats leaderboard.
       </div>
       <div style="margin-top:10px;padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
-        <strong style="color:var(--text);">Shared across devices</strong> — check-ins and team letters auto-save to the cloud as you go. Any commish on any device sees the same draft round on refresh, so if a no-show forces a reshuffle on the first tee, anyone with the commish password can adjust teams. <em>Clear Round</em> only forgets the round on the device you click it from; another commish device still has it.
+        <strong style="color:var(--text);">Shared across devices</strong> — check-ins and team letters auto-save to the cloud as you go. Any commish on any device sees the same draft round on refresh, so if a no-show forces a reshuffle on the first tee, anyone with the commish password can adjust teams. <em>Clear Round</em> deletes the draft round for everyone — check-ins, team letters and RSVPs go with it — so the Round tab starts empty on every device after a refresh. Finalized rounds and player stats are never touched.
       </div>
     </div>
 
@@ -726,6 +726,18 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.3</span>
+          <span class="release-date">September 28, 2026</span>
+        </div>
+        <h3>Clear Round actually clears the round</h3>
+        <ul class="release-list">
+          <li><strong>Fixed: a cleared round came back on refresh.</strong> Since drafts became shared across devices, <em>Clear Round</em> only forgot the round on the device you pressed it from. Every reload then re-adopted the same draft from the cloud, so there was no way to start over.</li>
+          <li><strong>Clear Round now deletes the draft for everyone.</strong> Check-ins, team letters and RSVPs for that round are removed and the Round tab starts empty on every commish device. The confirm dialog names the round and warns louder if scores have already been entered.</li>
+          <li>Finalized rounds, History and player stats are untouched. Completed rounds are still deleted only from the History tab.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.2</span>
