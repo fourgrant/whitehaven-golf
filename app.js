@@ -754,9 +754,10 @@ function renderTeamPreview() {
   }
 
   const teamEntries = Object.entries(teams).sort();
+  // Clipboard text is what goes to the group chat: letters and names only.
+  // Team stories are commish-facing and stay on the cards.
   const copyText = teamEntries.map(([t, players]) =>
-    `Team ${t}\n` + players.map(p => p.name).join('\n') +
-    (state.teamNarratives[t] ? `\n— ${state.teamNarratives[t]}` : '')
+    `Team ${t}\n` + players.map(p => p.name).join('\n')
   ).join('\n\n');
 
   container.innerHTML =
