@@ -536,8 +536,24 @@ async function saveRound() {
   showPage('teams');
 }
 
-function clearActiveRound() {
-  if (!confirm('Clear the active round? This won\'t delete any completed data.')) return;
+async function clearActiveRound() {
+  const r = state.currentRound;
+  const inProgress = r && r.status === 'in_progress';
+  const label = r ? `${r.date} at ${r.course}` : 'the active round';
+  const msg = inProgress
+    ? `Delete ${label} for everyone?\n\nThis round is IN PROGRESS. Teams, check-ins, RSVPs and any scores entered so far will be permanently removed from every device. Finalized rounds and player stats are not affected.`
+    : `Delete the draft round ${label} for everyone?\n\nCheck-ins, team letters and RSVPs for it will be removed from every device. Finalized rounds and player stats are not affected.`;
+  if (!confirm(msg)) return;
+
+  // The DB is the source of truth for the active round: every device re-adopts the newest
+  // non-complete round on load. Forgetting it locally only brings it back on refresh, so
+  // clearing means deleting the round row (round_players / rsvps cascade).
+  if (db && state.currentRoundId) {
+    const { error } = await db.from('rounds').delete()
+      .eq('id', state.currentRoundId).neq('status', 'complete');
+    if (error) { toast('Error clearing round: ' + error.message); return; }
+  }
+
   state.currentRound    = null;
   state.currentRoundId  = null;
   state.roundPlayers    = [];
@@ -553,8 +569,11 @@ function clearActiveRound() {
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
   localStorage.removeItem('whg_team_scores');
+  const rsvpSection = document.getElementById('rsvp-link-section');
+  if (rsvpSection) rsvpSection.style.display = 'none';
+  renderNav();
   renderRoundPage();
-  toast('Active round cleared.');
+  toast('Round cleared for all devices. Start a new one below.');
 }
 
 // ===== TEAMS PAGE =====
