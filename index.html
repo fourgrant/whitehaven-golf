@@ -57,6 +57,28 @@
   </div>
 </div>
 
+<!-- ===== SCORECARD UPLOAD MODAL ===== -->
+<div class="modal-overlay" id="scorecard-modal">
+  <div class="modal-box modal-wide modal-xl">
+    <button class="modal-close" onclick="closeScorecardModal()">✕</button>
+    <div class="modal-title">📷 Upload Scorecards</div>
+    <div class="modal-subtitle" id="sc-subtitle"></div>
+    <div id="sc-picker">
+      <label class="sc-drop">
+        <input type="file" id="sc-files" accept="image/*" multiple onchange="scHandleFiles(this.files)">
+        <span class="sc-drop-icon">📷</span>
+        <span class="sc-drop-text"><strong>Take photos or choose from your library</strong><br>One photo per card, straight on, whole card in frame. Up to 7 at once.</span>
+      </label>
+      <div id="sc-demo" style="display:none;margin-top:10px;">
+        <button class="btn btn-outline btn-sm" onclick="scLoadFixture()">Load sample cards (9/27/2026)</button>
+      </div>
+    </div>
+    <div id="sc-status"></div>
+    <div id="sc-review"></div>
+    <div class="btn-row" id="sc-actions" style="margin-top:16px;"></div>
+  </div>
+</div>
+
 <!-- ===== PLAYER DETAIL MODAL ===== -->
 <div class="modal-overlay" id="player-modal">
   <div class="modal-box modal-wide">
@@ -215,6 +237,7 @@
             oninput="renderPlayerAssignList()">
           <button class="btn btn-outline btn-sm" onclick="addGuest()">+ Add Guest</button>
           <button class="btn btn-outline btn-sm" onclick="openPasteModal()">📋 Paste List</button>
+          <button class="btn btn-outline btn-sm" onclick="openScorecardModal()">📷 Upload Scorecards</button>
           <button class="btn btn-outline btn-sm" onclick="importRsvps()">⬇ Import RSVPs</button>
           <button class="btn btn-outline btn-sm" onclick="autoBalance()">⚖ Auto-Balance</button>
           <button class="btn btn-outline btn-sm" onclick="shuffleTeams()">🔀 Shuffle</button>
@@ -281,7 +304,10 @@
     <div class="card" id="scores-main-card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
         <h2 style="margin:0;">Team Scores</h2>
-        <button class="btn btn-outline btn-sm commish-only" id="edit-teams-btn" onclick="showPage('teams')" style="display:none;">← Edit Teams</button>
+        <div class="btn-row commish-only" style="margin:0;">
+          <button class="btn btn-outline btn-sm" onclick="openScorecardModal()">📷 Upload Scorecards</button>
+          <button class="btn btn-outline btn-sm" id="edit-teams-btn" onclick="showPage('teams')" style="display:none;">← Edit Teams</button>
+        </div>
       </div>
       <div class="teams-grid" id="score-teams"></div>
     </div>
@@ -379,7 +405,7 @@
     <div class="card">
       <h2>Overview</h2>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
-        The Whitehaven Sunday League runs a 9-hole shambles format. Each week follows five steps: send the RSVP link, set up the round, build teams, enter scores, then finalize. This app — <strong>Sheila</strong> (She Handles Every Invite, Leaderboard &amp; Average) — auto-saves scores and round state to the cloud as you work, so it's safe to close and reopen at any point.
+        The Whitehaven Sunday League runs a 9-hole shambles format. Each week follows five steps: send the RSVP link, set up the round, build teams, enter scores, then finalize. This app — <strong>Sheila</strong> (She Handles Every Invite, Leaderboard &amp; Average) — auto-saves scores and round state to the cloud as you work, so it's safe to close and reopen at any point. If you have the paper cards, <strong>📷 Upload Scorecards</strong> can do Steps 2 and 3 from photos.
       </p>
       <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <span class="tag">0 RSVP</span>
@@ -459,6 +485,9 @@
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;">
         You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread.
       </p>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
+        <strong>Or skip check-in entirely:</strong> if the groups already went out and you have their paper cards, tap <strong>📷 Upload Scorecards</strong>, snap one photo per card, and Sheila checks in every name on the cards, makes each card a team, enters every score, and locks the round in — all from one review screen. See <em>Upload Scorecards</em> under Step 3 for how the review works.
+      </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
         <strong style="color:var(--text);">Active vs. Inactive players</strong> — once the league has 8+ tracked rounds, the check-in list splits into two sections. <em>Active Players</em> (played in the last 8 rounds) appear at the top. <em>Inactive Players</em> are collapsed below — click <em>expand ▼</em> to reveal them. Inactive players are fully selectable; they just haven't shown up recently.
       </p>
@@ -473,7 +502,7 @@
       </ul>
       <div class="section-label">Team stories</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
-        After Auto-Balance or Shuffle, each team card carries a two-line <strong>bookmaker's card</strong>: who heads the card (the team's lowest average) and any coupled entry from a Play-Together pairing, one note on form (a first-time guest, a player with 3 or fewer starts, or the veterans carrying the most rounds), and a <em>morning line</em>. The line is set from the team's average against the day's field: 1-2 or 4-5 means the team is favored, even money means it's dead level, 5-2 or 4-1 means it's the outsider. The wording rotates week to week. Cards are included when you <em>Copy Teams</em>, so they paste straight into the group text.
+        After Auto-Balance or Shuffle, each team card carries a two-line <strong>bookmaker's card</strong>: who heads the card (the team's lowest average) and any coupled entry from a Play-Together pairing, one note on form (a first-time guest, a player with 3 or fewer starts, or the veterans carrying the most rounds), and a <em>morning line</em>. The line is set from the team's average against the day's field: 1-2 or 4-5 means the team is favored, even money means it's dead level, 5-2 or 4-1 means it's the outsider. The wording rotates week to week. Cards are for the commish's eyes only: <em>Copy Teams</em> puts just the team letters and names on the clipboard, so the group text stays short.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
         If you change a team letter by hand afterward, the affected cards get a "Stewards' adjustment after the draw" note rather than pretending the balancer chose it. Teams built entirely by hand have no card. Cards are saved with the round and show up on the Scores tab and in History.
@@ -497,7 +526,7 @@
         <strong style="color:var(--text);">Guest players</strong> — use the <em>+ Add Guest</em> button to add a walk-up player who isn't in the roster. Guests are included in team math for the day but don't affect the permanent stats leaderboard.
       </div>
       <div style="margin-top:10px;padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
-        <strong style="color:var(--text);">Shared across devices</strong> — check-ins and team letters auto-save to the cloud as you go. Any commish on any device sees the same draft round on refresh, so if a no-show forces a reshuffle on the first tee, anyone with the commish password can adjust teams. <em>Clear Round</em> only forgets the round on the device you click it from; another commish device still has it.
+        <strong style="color:var(--text);">Shared across devices</strong> — check-ins and team letters auto-save to the cloud as you go. Any commish on any device sees the same draft round on refresh, so if a no-show forces a reshuffle on the first tee, anyone with the commish password can adjust teams. <em>Clear Round</em> deletes the draft round for everyone — check-ins, team letters and RSVPs go with it — so the Round tab starts empty on every device after a refresh. Finalized rounds and player stats are never touched.
       </div>
     </div>
 
@@ -505,14 +534,32 @@
     <div class="card">
       <h2>🏌️ Step 3 — Scores Tab</h2>
 
-      <div class="section-label" style="margin-top:0;">Individual scores</div>
+      <div class="section-label" style="margin-top:0;">📷 Upload Scorecards (the fast way)</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
+        Tap <strong>📷 Upload Scorecards</strong> and take a photo of each group's paper card — one photo per card, whole card in frame, roughly straight on. Sheila reads the handwritten names, all nine holes, and the Out column, then shows a <strong>review screen</strong> before anything is saved:
+      </p>
+      <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
+        <li><strong>Names</strong> are matched to the roster. "Stu" finds Stuart, "T$" finds Terrence. A name that fits two players (John, Joe) shows a <em>Which one?</em> pick; an unknown name offers <em>Add as guest</em>. Guests start with today's score as their average.</li>
+        <li><strong>Totals are cross-checked.</strong> If the nine holes don't add up to the number in the Out column, the row is flagged with both numbers and a one-tap <em>use</em> button. Every hole and total is editable right there.</li>
+        <li><strong>Team scores are computed</strong> from the holes: best 3 of 4 balls per hole (best 2 of 3 for three-man teams), relative to par, cumulative — the same math as the running row on the card. If the card's handwritten row ends on a different number, you see both and choose.</li>
+        <li><strong>Skins are suggested:</strong> any hole where one player beat everyone outright is listed, and marked on the Skins section when you apply (untick the box to skip). Ties are left as <em>No skin</em>.</li>
+        <li><strong>Tiebreaker is pre-filled</strong> from the per-hole team scores, so a tie at the top resolves itself.</li>
+      </ul>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+        If teams aren't locked yet, upload from the <em>Teams</em> tab: each card becomes a team (A, B, C…), the players on it are checked in, and the round is locked in when you apply. If teams are already locked, upload from here and each card is matched to the team its players are on. Anyone on a card who wasn't checked in gets added to that team. Closest-to-the-pin is not on the card, so set CTH by hand.
+      </p>
+      <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">
+        Reading needs the <em>read-scorecard</em> function deployed with an Anthropic key (see the README). Add <code>?demo=scorecards</code> to the app URL for a <em>Load sample cards</em> button that runs the whole review on six real cards without calling the reader.
+      </p>
+
+      <div class="section-label">Individual scores</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
         Enter each player's total stroke count for the 9 holes in the field next to their name. These are used to update <strong>player scoring averages</strong> — they do not determine the winning team. Scores auto-save to the cloud as you type (no Save button needed).
       </p>
 
       <div class="section-label">Team shamble score</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        At the top of each team card there is a <strong>gold-bordered box</strong> — this is where you enter the team's combined shamble score. The team with the <em>lowest</em> score wins the team pot. Enter this manually (it's the actual shamble result from the course, not calculated from individual scores). Team scores also auto-save.
+        At the top of each team card there is a <strong>gold-bordered box</strong> — this is where the team's shamble score goes. The team with the <em>lowest</em> score wins the team pot. Uploading scorecards fills it in from the hole-by-hole scores; if you're entering by hand, type the result from the card (it is not calculated from the 9-hole totals). Team scores also auto-save.
       </p>
 
       <div class="section-label">Tiebreaker</div>
@@ -681,7 +728,7 @@
     <div class="card">
       <div class="release-entry">
         <div class="release-header">
-          <span class="release-version">v2.2</span>
+          <span class="release-version">v2.5</span>
           <span class="release-date">September 29, 2026</span>
         </div>
         <h3>Team Stories Get a Bookmaker's Voice</h3>
@@ -689,6 +736,43 @@
           <li><strong>Shorter, sharper team cards.</strong> Each team's story is now a two-line racing-form entry: who heads the card and any coupled entry, one note on form (first-time guests, players with 3 or fewer starts, or the veterans carrying the rounds), and a <em>morning line</em> set from the team's average against the field. Even money means dead level; 1-2 and 4-5 are favored; 5-2 and 4-1 are the outsiders.</li>
           <li>Wording rotates from week to week so the cards don't read the same every Sunday, but stays put when you refresh.</li>
           <li>Hand edits after balancing now leave a "Stewards' adjustment after the draw" note.</li>
+        </ul>
+      </div>
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.4</span>
+          <span class="release-date">September 28, 2026</span>
+        </div>
+        <h3>Copy Teams is names only</h3>
+        <ul class="release-list">
+          <li><strong>Team stories stay with the commish.</strong> <em>Copy Teams</em> now copies just the team letters and player names. The stories still show on the team cards, the Scores tab and History, but they no longer pad out the group text.</li>
+          <li>Fixed the Team Preview layout: the Copy Teams button no longer stretches into a tall empty column beside the cards, and the cards flow across the grid again.</li>
+        </ul>
+      </div>
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.3</span>
+          <span class="release-date">September 28, 2026</span>
+        </div>
+        <h3>Clear Round actually clears the round</h3>
+        <ul class="release-list">
+          <li><strong>Fixed: a cleared round came back on refresh.</strong> Since drafts became shared across devices, <em>Clear Round</em> only forgot the round on the device you pressed it from. Every reload then re-adopted the same draft from the cloud, so there was no way to start over.</li>
+          <li><strong>Clear Round now deletes the draft for everyone.</strong> Check-ins, team letters and RSVPs for that round are removed and the Round tab starts empty on every commish device. The confirm dialog names the round and warns louder if scores have already been entered.</li>
+          <li>Finalized rounds, History and player stats are untouched. Completed rounds are still deleted only from the History tab.</li>
+        </ul>
+      </div>
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.2</span>
+          <span class="release-date">September 27, 2026</span>
+        </div>
+        <h3>Upload Scorecards</h3>
+        <ul class="release-list">
+          <li><strong>Photograph the paper cards and Sheila enters the round.</strong> A new <em>📷 Upload Scorecards</em> button on the Teams and Scores tabs takes one photo per card. Sheila reads every name, all nine holes, and the Out column, then shows a review screen before anything is saved.</li>
+          <li><strong>Teams from cards.</strong> Upload before teams are locked and each card becomes a team: players are checked in, unknown names can be added as guests, scores are entered, and the round is locked in — all in one tap. Upload after teams are locked and the scores land on the existing teams.</li>
+          <li><strong>Math is checked, not trusted.</strong> Rows whose holes don't add up to the written total are flagged with both numbers. Team scores are computed from the holes (best 3 of 4, relative to par, cumulative) and compared with the card's handwritten running row.</li>
+          <li><strong>Skins and tiebreaker come for free.</strong> Outright hole winners across all cards are suggested and marked on apply; per-hole team scores pre-fill the tiebreaker so a tie at the top resolves itself.</li>
+          <li>Hole-by-hole scores are now saved with the round. Setup needs the <em>read-scorecard</em> function deployed with an Anthropic key (README §9); <code>?demo=scorecards</code> runs the review on six sample cards without it.</li>
         </ul>
       </div>
       <div class="release-entry">
@@ -922,6 +1006,7 @@
 <script src="config.js"></script>
 <!-- App logic -->
 <script src="app.js"></script>
+<script src="scorecard.js"></script>
 
 </body>
 </html>

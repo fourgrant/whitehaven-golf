@@ -35,6 +35,7 @@ const state = {
   holeWinners: {},        // hole# (1-9) -> rpId
   cthWinners: { hole2: null, hole5: null }, // rpId per CTH hole
   tiebreakerScores: {},   // team -> hole# -> score
+  holeScores: {},         // rpId -> [9 hole scores] when a scorecard was uploaded
   paidIn: new Set(),
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
@@ -76,6 +77,7 @@ function saveRoundState() {
     cthWinners: state.cthWinners,
     tiebreakerScores: state.tiebreakerScores,
     teamNarratives: state.teamNarratives,
+    holeScores: state.holeScores,
   };
   showSavingStatus();
   debounce('roundState', async () => {
@@ -415,6 +417,7 @@ async function loadCurrentRound() {
     state.cthWinners       = data.round_state.cthWinners       || { hole2: null, hole5: null };
     state.tiebreakerScores = data.round_state.tiebreakerScores || {};
     state.teamNarratives   = data.round_state.teamNarratives   || {};
+    state.holeScores       = data.round_state.holeScores       || {};
   }
   // Sync team scores from DB (source of truth over localStorage)
   if (data.team_scores && Object.keys(data.team_scores).length) {
@@ -533,8 +536,24 @@ async function saveRound() {
   showPage('teams');
 }
 
-function clearActiveRound() {
-  if (!confirm('Clear the active round? This won\'t delete any completed data.')) return;
+async function clearActiveRound() {
+  const r = state.currentRound;
+  const inProgress = r && r.status === 'in_progress';
+  const label = r ? `${r.date} at ${r.course}` : 'the active round';
+  const msg = inProgress
+    ? `Delete ${label} for everyone?\n\nThis round is IN PROGRESS. Teams, check-ins, RSVPs and any scores entered so far will be permanently removed from every device. Finalized rounds and player stats are not affected.`
+    : `Delete the draft round ${label} for everyone?\n\nCheck-ins, team letters and RSVPs for it will be removed from every device. Finalized rounds and player stats are not affected.`;
+  if (!confirm(msg)) return;
+
+  // The DB is the source of truth for the active round: every device re-adopts the newest
+  // non-complete round on load. Forgetting it locally only brings it back on refresh, so
+  // clearing means deleting the round row (round_players / rsvps cascade).
+  if (db && state.currentRoundId) {
+    const { error } = await db.from('rounds').delete()
+      .eq('id', state.currentRoundId).neq('status', 'complete');
+    if (error) { toast('Error clearing round: ' + error.message); return; }
+  }
+
   state.currentRound    = null;
   state.currentRoundId  = null;
   state.roundPlayers    = [];
@@ -543,14 +562,18 @@ function clearActiveRound() {
   state.scores          = {};
   state.teamScores      = {};
   state.holeWinners     = {};
+  state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
   localStorage.removeItem('whg_team_scores');
+  const rsvpSection = document.getElementById('rsvp-link-section');
+  if (rsvpSection) rsvpSection.style.display = 'none';
+  renderNav();
   renderRoundPage();
-  toast('Active round cleared.');
+  toast('Round cleared for all devices. Start a new one below.');
 }
 
 // ===== TEAMS PAGE =====
@@ -731,9 +754,10 @@ function renderTeamPreview() {
   }
 
   const teamEntries = Object.entries(teams).sort();
+  // Clipboard text is what goes to the group chat: letters and names only.
+  // Team stories are commish-facing and stay on the cards.
   const copyText = teamEntries.map(([t, players]) =>
-    `Team ${t}\n` + players.map(p => p.name).join('\n') +
-    (state.teamNarratives[t] ? `\n— ${state.teamNarratives[t]}` : '')
+    `Team ${t}\n` + players.map(p => p.name).join('\n')
   ).join('\n\n');
 
   container.innerHTML =
@@ -1828,6 +1852,7 @@ async function finalizeRound() {
   state.scores          = {};
   state.teamScores      = {};
   state.holeWinners     = {};
+  state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
   state.paidIn          = new Set();
