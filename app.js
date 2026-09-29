@@ -712,7 +712,7 @@ function assignTeam(playerId, team) {
 }
 
 // A hand edit after balancing makes the auto-generated story stale — say so rather than hide it.
-const NARRATIVE_ADJUSTED = 'Adjusted by hand after balancing.';
+const NARRATIVE_ADJUSTED = "Stewards' adjustment after the draw.";
 function markNarrativeAdjusted(team) {
   if (!team || !state.teamNarratives[team]) return;
   if (state.teamNarratives[team].includes(NARRATIVE_ADJUSTED)) return;
@@ -896,7 +896,8 @@ function autoBalance()  { runBalancer('balance'); }
 function shuffleTeams() { runBalancer('shuffle'); }
 
 // ===== TEAM NARRATIVES =====
-// Turns the balancer's placement trace into a short, plain-English story per team.
+// Turns the balancer's placement trace into a two-line "bookmaker's card" per team:
+// who heads the card (and any coupled entry), one note on form, and a morning line.
 
 function playerAvg(p) { return parseFloat(p.avg_score) || 40; }
 function fmtAvg(n)    { return n.toFixed(1); }
@@ -904,17 +905,36 @@ function listNames(names) {
   if (names.length <= 1) return names.join('');
   return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
 }
-function ordinalWord(n) {
-  const words = ['', 'lowest', 'second-lowest', 'third-lowest', 'fourth-lowest', 'fifth-lowest', 'sixth-lowest'];
-  return words[n] || `${n}th-lowest`;
+function isGuest(p) { return String(p.id).startsWith('guest-'); }
+
+// Pick a phrasing that is stable for a given round but varies week to week.
+function narrativeSeed() {
+  const key = String(state.currentRound?.date || state.currentRound?.id || '');
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h;
 }
-function describeGap(teamAvg, fieldAvg) {
+function pickPhrase(list, salt) {
+  return list[(narrativeSeed() + salt) % list.length];
+}
+
+// How the anchor is described by their rank in today's field.
+function rankTag(rank, total) {
+  if (rank === 1) return pickPhrase(['the chalk', "the field's favorite", 'the shortest price on the board'], 1);
+  if (rank === 2) return pickPhrase(['second choice in the betting', 'the second favorite'], 2);
+  if (rank === 3) return pickPhrase(['third choice in the betting', 'the third favorite'], 3);
+  if (rank >= total - 1) return pickPhrase(['a longer price than usual up top', 'an outsider carrying the card'], 4);
+  return pickPhrase([`${rank}th pick of the field`, `a mid-price runner at ${rank}th`], 5);
+}
+
+// Morning line from the gap between the team's average and the field's.
+function morningLine(teamAvg, fieldAvg) {
   const d = teamAvg - fieldAvg;
-  if (Math.abs(d) < 0.25) return 'right on';
-  if (d < -0.75) return 'well under';
-  if (d < 0) return 'a hair under';
-  if (d > 0.75) return 'well over';
-  return 'a hair over';
+  if (d <= -0.75) return pickPhrase(['1-2, heavy favorite', 'the chalk at 1-2'], 6);
+  if (d < -0.25)  return pickPhrase(['4-5, favored', 'favored at 4-5'], 7);
+  if (d < 0.25)   return pickPhrase(['even money', 'even money, pick your poison'], 8);
+  if (d < 0.75)   return pickPhrase(['5-2, live outsider', '5-2 and worth a look'], 9);
+  return pickPhrase(['4-1, long shot', 'the long shot at 4-1'], 10);
 }
 
 function buildTeamNarratives(trace, assignments, checkedIds, method) {
@@ -937,76 +957,54 @@ function buildTeamNarratives(trace, assignments, checkedIds, method) {
     const teamAvg = members.reduce((s, p) => s + playerAvg(p), 0) / members.length;
     const placements = trace.filter(e => e.team === t);
     const first = placements[0];
-    const later = placements.slice(1);
-    const sentences = [];
+    if (!first) { out[t] = ''; continue; }
+    const salt = TEAMS.indexOf(t) + 1;
 
-    if (!first) {
-      out[t] = '';
-      continue;
-    }
-
-    // Sentence 1 — how the core of the team was chosen.
-    if (first.unit.pair) {
-      const names = first.unit.players.map(p => p.name);
-      sentences.push(`${listNames(names)} asked to ride together, so they went in as one unit averaging ${fmtAvg(first.unit.avg - (first.unit.jitter || 0))}${first.wasEmpty ? '' : ` and landed on the team that needed the most help`}.`);
-    } else {
-      const anchor = first.unit.players[0];
-      const rank = rankOf(anchor);
-      const hasAvg = !!parseFloat(anchor.avg_score);
-      const avgText = hasAvg ? fmtAvg(playerAvg(anchor)) : 'no average yet, counted as 40';
-      const rankText = hasAvg ? `the ${ordinalWord(rank)} average in today's field` : `a new face in today's field`;
-      if (shuffled) {
-        sentences.push(`The shuffle dealt ${anchor.name} (${avgText}) here first, ${rankText}.`);
-      } else if (first.wasEmpty) {
-        sentences.push(`Anchored by ${anchor.name} (${avgText}), ${rankText}.`);
+    // Line 1 — who heads the card, and any coupled entry.
+    const sortedMembers = [...members].sort((a, b) => playerAvg(a) - playerAvg(b));
+    const anchor = sortedMembers[0];
+    const pair = placements.find(e => e.unit.pair);
+    const anchorAvg = parseFloat(anchor.avg_score) ? fmtAvg(playerAvg(anchor)) : '40.0 (no form)';
+    const lead = shuffled
+      ? pickPhrase(['After the reshuffle,', 'Post-draw,', 'On the redraw,'], salt)
+      : '';
+    let line1;
+    if (pair) {
+      const pairNames = pair.unit.players.map(p => p.name);
+      const pairIsAnchor = pairNames.includes(anchor.name);
+      if (pairIsAnchor) {
+        line1 = `${lead ? lead + ' ' : ''}${listNames(pairNames)} run as a coupled entry at ${fmtAvg(pair.unit.avg - (pair.unit.jitter || 0))}, ${rankTag(rankOf(anchor), field.length)}.`;
       } else {
-        sentences.push(`${anchor.name} (${avgText}) was the strongest player still on the board when Team ${t} was trailing, so the balancer sent ${anchor.name.split(' ')[0]} here.`);
+        line1 = `${lead ? lead + ' ' : ''}${anchor.name} heads the card at ${anchorAvg}, with ${listNames(pairNames)} running as a coupled entry.`;
       }
-    }
-
-    // Sentence 2 — who filled it out and where it landed against the field.
-    const laterNames = later.flatMap(e => e.unit.players.map(p => p.name));
-    const gap = describeGap(teamAvg, fieldAvg);
-    if (laterNames.length) {
-      const pairLater = later.find(e => e.unit.pair);
-      let who;
-      if (pairLater) {
-        const pairNames = pairLater.unit.players.map(p => p.name);
-        const others = laterNames.filter(n => !pairNames.includes(n));
-        who = `${listNames(pairNames)} came as a pair${others.length ? `, with ${listNames(others)} alongside` : ''},`;
-      } else {
-        // Rotate the phrasing by team so four cards don't all read the same.
-        const fills = [
-          'came next as the balancer kept feeding whichever team was trailing',
-          'were dealt in on later passes to pull the average back in line',
-          'rounded it out once the stronger names were off the board',
-          'filled the remaining slots as the field thinned out',
-        ];
-        const idx = TEAMS.indexOf(t) % fills.length;
-        who = `${listNames(laterNames)} ${fills[idx < 0 ? 0 : idx]},`;
-      }
-      sentences.push(`${who} landing the team at ${fmtAvg(teamAvg)}, ${gap} the ${fmtAvg(fieldAvg)} field average.`);
     } else {
-      sentences.push(`That puts the team at ${fmtAvg(teamAvg)}, ${gap} the ${fmtAvg(fieldAvg)} field average.`);
+      line1 = `${lead ? lead + ' ' : ''}${anchor.name} heads the card at ${anchorAvg}, ${rankTag(rankOf(anchor), field.length)}.`;
     }
+    if (lead) line1 = line1.charAt(0).toUpperCase() + line1.slice(1);
 
-    // Optional flavor — soft numbers or lots of mileage. One or the other, never both.
-    const rookies = members.filter(p => p.rounds_played !== undefined && p.rounds_played !== null && p.rounds_played <= 3 && !String(p.id).startsWith('guest-'));
-    const guests  = members.filter(p => String(p.id).startsWith('guest-'));
+    // Line 2 — one note on form, then the morning line.
+    const rest = sortedMembers.filter(p => p !== anchor && !(pair && pair.unit.players.some(x => x.id === p.id)));
+    const guests  = members.filter(isGuest);
+    const rookies = members.filter(p => !isGuest(p) && p.rounds_played != null && p.rounds_played <= 3);
     const vets    = members.filter(p => (p.rounds_played || 0) >= 30);
+    let note;
     if (guests.length) {
-      sentences.push(`${listNames(guests.map(p => p.name))} ${guests.length > 1 ? 'are guests' : 'is a guest'} with no history, so that average is a guess.`);
+      note = `${listNames(guests.map(p => p.name))} ${guests.length > 1 ? 'are first-time starters' : 'is a first-time starter'} with no form to go on`;
     } else if (rookies.length) {
-      sentences.push(`${listNames(rookies.map(p => p.name))} ${rookies.length > 1 ? 'have' : 'has'} 3 or fewer rounds on record, so that average is a soft number.`);
+      const r = rookies[0];
+      note = rookies.length > 1
+        ? `${listNames(rookies.map(p => p.name))} are unproven at ${Math.max(...rookies.map(p => p.rounds_played))} starts or fewer`
+        : `${r.name} is unproven at ${r.rounds_played} start${r.rounds_played === 1 ? '' : 's'}`;
     } else if (vets.length >= 2) {
-      sentences.push(`Plenty of mileage here: ${listNames(vets.map(p => `${p.name} (${p.rounds_played})`))} have the most rounds on the team.`);
+      note = `${listNames(vets.map(p => `${p.name} (${p.rounds_played} starts)`))} carry the form`;
+    } else if (rest.length) {
+      note = `${listNames(rest.map(p => p.name))} ${pickPhrase(['complete the entry', 'fill out the card', 'make up the rest of the field', 'round out the ticket'], salt + 20)}`;
+    } else {
+      note = pickPhrase(['No surprises on the card', 'Nothing hidden in the form'], salt + 30);
     }
+    if (placements.some(e => e.overflow)) note += ', and this team took the overflow from an oversized coupled entry';
 
-    if (placements.some(e => e.overflow)) {
-      sentences.push('A pairing was too big for the open slots, so this team took the overflow.');
-    }
-
-    out[t] = sentences.join(' ');
+    out[t] = `${line1} ${note}. Morning line: ${morningLine(teamAvg, fieldAvg)}.`;
   }
   return out;
 }
