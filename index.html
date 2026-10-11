@@ -505,7 +505,7 @@
         After Auto-Balance or Shuffle, each team card carries a two-line <strong>bookmaker's card</strong>: who heads the card (the team's lowest average) and any coupled entry from a Play-Together pairing, one note on form (a first-time guest, a player with 3 or fewer starts, or the veterans carrying the most rounds), and a <em>morning line</em>. The line is set from the team's average against the day's field: 1-2 or 4-5 means the team is favored, even money means it's dead level, 5-2 or 4-1 means it's the outsider. The wording rotates week to week. Cards are for the commish's eyes only: <em>Copy Teams</em> puts just the team letters and names on the clipboard, so the group text stays short.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
-        If you change a team letter by hand afterward, the affected cards get a "Stewards' adjustment after the draw" note rather than pretending the balancer chose it. Teams built entirely by hand have no card. Cards are saved with the round and show up on the Scores tab and in History.
+        Cards always describe who is on the team <em>right now</em>. If you change a team letter by hand afterward, uncheck someone, or apply an uploaded scorecard, the affected cards are rewritten for the new line-up and get a "Stewards' adjustment after the draw" note rather than pretending the balancer chose it. Teams built entirely by hand have no card. Cards are saved with the round and show up on the Scores tab and in History.
       </p>
       <div class="section-label">Play-together requests</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
@@ -726,6 +726,18 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.6</span>
+          <span class="release-date">October 11, 2026</span>
+        </div>
+        <h3>Team Stories Follow the Players</h3>
+        <ul class="release-list">
+          <li><strong>Cards match the roster.</strong> Moving a player by hand, unchecking someone, or applying an uploaded scorecard now rewrites the affected team cards for who is actually on the team. Previously the balancer's original write-up stayed put, so a card could name players who had since moved elsewhere.</li>
+          <li>Hand-edited teams still carry the "Stewards' adjustment after the draw" note, now at the end of a card that is otherwise accurate.</li>
+          <li>Rounds already in progress are fixed on the next load: cards are rebuilt from the current teams on every device.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.5</span>

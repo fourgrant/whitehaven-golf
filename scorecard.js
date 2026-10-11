@@ -546,10 +546,14 @@ async function scApply() {
     if (sc.mode === 'teams') {
       for (const card of sc.cards) {
         for (const row of scActiveRows(card)) {
+          const prev = state.teamAssignments[row.playerId];
           state.checkedIn.add(row.playerId);
           state.teamAssignments[row.playerId] = card.letter;
+          // The card overrides whatever the balancer did, so the story notes the change.
+          if (prev && prev !== card.letter) { markNarrativeAdjusted(prev); markNarrativeAdjusted(card.letter); }
         }
       }
+      refreshTeamNarratives({ save: false });
       if (db) {
         await persistTeamAssignmentsBulk();
         const { error } = await db.from('rounds').update({ status: 'in_progress' }).eq('id', state.currentRound.id);
@@ -613,13 +617,7 @@ async function scApply() {
     if (db) {
       const { error } = await db.from('rounds').update({
         team_scores: state.teamScores,
-        round_state: {
-          holeWinners: state.holeWinners,
-          cthWinners: state.cthWinners,
-          tiebreakerScores: state.tiebreakerScores,
-          teamNarratives: state.teamNarratives,
-          holeScores: state.holeScores,
-        },
+        round_state: roundStatePayload(),
       }).eq('id', state.currentRound.id);
       if (error) throw new Error(error.message);
     }

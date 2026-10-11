@@ -39,7 +39,8 @@ const state = {
   paidIn: new Set(),
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
-  teamNarratives: {}, // team letter -> one- or two-sentence story of how the team was built
+  teamNarratives: {}, // team letter -> two-line bookmaker's card, rebuilt from current membership
+  teamStoryMeta: { method: null, overflowTeams: [], adjustedTeams: [] }, // how the stories were seeded
   activityData: null, // { totalTrackedRounds, playerActivity: Map<playerId, offset> }
   seasonLedger: null, // cached promise → { year, roundIds, roundMeta, byPlayer } (The Bank + Trophy Case)
 };
@@ -70,15 +71,20 @@ function showSavedStatus() {
   }, 2000);
 }
 
-function saveRoundState() {
-  if (!db || !state.currentRound) return;
-  const roundState = {
+function roundStatePayload() {
+  return {
     holeWinners: state.holeWinners,
     cthWinners: state.cthWinners,
     tiebreakerScores: state.tiebreakerScores,
     teamNarratives: state.teamNarratives,
+    teamStoryMeta: state.teamStoryMeta,
     holeScores: state.holeScores,
   };
+}
+
+function saveRoundState() {
+  if (!db || !state.currentRound) return;
+  const roundState = roundStatePayload();
   showSavingStatus();
   debounce('roundState', async () => {
     await db.from('rounds').update({ round_state: roundState }).eq('id', state.currentRound.id);
@@ -418,6 +424,12 @@ async function loadCurrentRound() {
     state.tiebreakerScores = data.round_state.tiebreakerScores || {};
     state.teamNarratives   = data.round_state.teamNarratives   || {};
     state.holeScores       = data.round_state.holeScores       || {};
+    // Rounds balanced before stories were rebuilt from membership saved text but no meta.
+    // Treat them as a plain balance so their cards regenerate instead of vanishing.
+    const meta = data.round_state.teamStoryMeta;
+    state.teamStoryMeta = meta
+      ? { method: meta.method || null, overflowTeams: meta.overflowTeams || [], adjustedTeams: meta.adjustedTeams || [] }
+      : { method: Object.keys(state.teamNarratives).length ? 'balance' : null, overflowTeams: [], adjustedTeams: [] };
   }
   // Sync team scores from DB (source of truth over localStorage)
   if (data.team_scores && Object.keys(data.team_scores).length) {
@@ -425,7 +437,12 @@ async function loadCurrentRound() {
     localStorage.setItem('whg_team_scores', JSON.stringify(state.teamScores));
   }
 
-  if (data.status !== 'complete') await loadRoundPlayers();
+  if (data.status !== 'complete') {
+    await loadRoundPlayers();
+    // Stories always describe the players on the team right now. Rebuild in memory
+    // only — the next commish edit saves; public viewers never write.
+    refreshTeamNarratives({ save: false });
+  }
 }
 
 async function loadRoundPlayers() {
@@ -565,6 +582,7 @@ async function clearActiveRound() {
   state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
+  state.teamStoryMeta   = { method: null, overflowTeams: [], adjustedTeams: [] };
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
@@ -718,6 +736,7 @@ function togglePlayer(playerId, checked) {
     markNarrativeAdjusted(state.teamAssignments[playerId]);
     delete state.teamAssignments[playerId];
     persistCheckOut(playerId);
+    refreshTeamNarratives();
   }
   renderPlayerAssignList();
   renderTeamPreview();
@@ -731,16 +750,28 @@ function assignTeam(playerId, team) {
   markNarrativeAdjusted(prev);
   markNarrativeAdjusted(team);
   persistTeamAssignment(playerId);
+  refreshTeamNarratives();
   renderTeamPreview();
 }
 
-// A hand edit after balancing makes the auto-generated story stale — say so rather than hide it.
+// A hand edit after balancing is remembered per team; the story is rebuilt for the
+// team's current players and carries this note rather than pretending the balancer chose it.
 const NARRATIVE_ADJUSTED = "Stewards' adjustment after the draw.";
 function markNarrativeAdjusted(team) {
-  if (!team || !state.teamNarratives[team]) return;
-  if (state.teamNarratives[team].includes(NARRATIVE_ADJUSTED)) return;
-  state.teamNarratives[team] += ' ' + NARRATIVE_ADJUSTED;
-  saveRoundState();
+  if (!team) return;
+  const adj = state.teamStoryMeta.adjustedTeams;
+  if (!adj.includes(team)) adj.push(team);
+}
+
+// Rebuilds every team's story from who is on it right now. Teams built entirely by
+// hand (never balanced) have no story.
+function refreshTeamNarratives({ save = true } = {}) {
+  if (!state.teamStoryMeta.method) {
+    state.teamNarratives = {};
+  } else {
+    state.teamNarratives = buildTeamNarratives(state.teamAssignments, [...state.checkedIn], state.teamStoryMeta);
+  }
+  if (save) saveRoundState();
 }
 
 function renderTeamPreview() {
@@ -908,9 +939,13 @@ function runBalancer(method) {
   const assignments = assignUnitsGreedy(units, numTeams, trace);
 
   Object.assign(state.teamAssignments, assignments);
-  state.teamNarratives = buildTeamNarratives(trace, assignments, checkedIds, method);
+  state.teamStoryMeta = {
+    method,
+    overflowTeams: [...new Set(trace.filter(e => e.overflow).map(e => e.team))],
+    adjustedTeams: [],
+  };
   persistTeamAssignmentsBulk();
-  saveRoundState();
+  refreshTeamNarratives();
   renderPlayerAssignList();
   renderTeamPreview();
   toast(method === 'shuffle' ? 'Teams reshuffled!' : 'Teams balanced by scoring average!');
@@ -920,7 +955,7 @@ function autoBalance()  { runBalancer('balance'); }
 function shuffleTeams() { runBalancer('shuffle'); }
 
 // ===== TEAM NARRATIVES =====
-// Turns the balancer's placement trace into a two-line "bookmaker's card" per team:
+// Builds a two-line "bookmaker's card" per team from its current members:
 // who heads the card (and any coupled entry), one note on form, and a morning line.
 
 function playerAvg(p) { return parseFloat(p.avg_score) || 40; }
@@ -961,13 +996,15 @@ function morningLine(teamAvg, fieldAvg) {
   return pickPhrase(['4-1, long shot', 'the long shot at 4-1'], 10);
 }
 
-function buildTeamNarratives(trace, assignments, checkedIds, method) {
+function buildTeamNarratives(assignments, checkedIds, meta) {
   const field = checkedIds.map(id => state.players.find(p => p.id === id) || { id, name: 'Guest', avg_score: 40 });
   if (!field.length) return {};
   const fieldAvg = field.reduce((s, p) => s + playerAvg(p), 0) / field.length;
   const ranked = [...field].sort((a, b) => playerAvg(a) - playerAvg(b));
   const rankOf = p => ranked.findIndex(x => x.id === p.id) + 1;
-  const shuffled = method === 'shuffle';
+  const shuffled = meta.method === 'shuffle';
+  const overflowTeams = meta.overflowTeams || [];
+  const adjustedTeams = meta.adjustedTeams || [];
 
   const teams = {};
   field.forEach(p => {
@@ -979,25 +1016,30 @@ function buildTeamNarratives(trace, assignments, checkedIds, method) {
   const out = {};
   for (const [t, members] of Object.entries(teams)) {
     const teamAvg = members.reduce((s, p) => s + playerAvg(p), 0) / members.length;
-    const placements = trace.filter(e => e.team === t);
-    const first = placements[0];
-    if (!first) { out[t] = ''; continue; }
     const salt = TEAMS.indexOf(t) + 1;
 
     // Line 1 — who heads the card, and any coupled entry.
     const sortedMembers = [...members].sort((a, b) => playerAvg(a) - playerAvg(b));
     const anchor = sortedMembers[0];
-    const pair = placements.find(e => e.unit.pair);
+    // A coupled entry is a Play-Together pairing whose members are all still on this team.
+    const memberIds = new Set(members.map(p => p.id));
+    const pairIds = state.pairGroups
+      .map(g => g.filter(id => memberIds.has(id)))
+      .find(g => g.length >= 2);
+    const pair = pairIds
+      ? { players: pairIds.map(id => members.find(p => p.id === id)) }
+      : null;
+    if (pair) pair.avg = pair.players.reduce((s, p) => s + playerAvg(p), 0) / pair.players.length;
     const anchorAvg = parseFloat(anchor.avg_score) ? fmtAvg(playerAvg(anchor)) : '40.0 (no form)';
     const lead = shuffled
       ? pickPhrase(['After the reshuffle,', 'Post-draw,', 'On the redraw,'], salt)
       : '';
     let line1;
     if (pair) {
-      const pairNames = pair.unit.players.map(p => p.name);
-      const pairIsAnchor = pairNames.includes(anchor.name);
+      const pairNames = pair.players.map(p => p.name);
+      const pairIsAnchor = pair.players.some(p => p.id === anchor.id);
       if (pairIsAnchor) {
-        line1 = `${lead ? lead + ' ' : ''}${listNames(pairNames)} run as a coupled entry at ${fmtAvg(pair.unit.avg - (pair.unit.jitter || 0))}, ${rankTag(rankOf(anchor), field.length)}.`;
+        line1 = `${lead ? lead + ' ' : ''}${listNames(pairNames)} run as a coupled entry at ${fmtAvg(pair.avg)}, ${rankTag(rankOf(anchor), field.length)}.`;
       } else {
         line1 = `${lead ? lead + ' ' : ''}${anchor.name} heads the card at ${anchorAvg}, with ${listNames(pairNames)} running as a coupled entry.`;
       }
@@ -1007,7 +1049,7 @@ function buildTeamNarratives(trace, assignments, checkedIds, method) {
     if (lead) line1 = line1.charAt(0).toUpperCase() + line1.slice(1);
 
     // Line 2 — one note on form, then the morning line.
-    const rest = sortedMembers.filter(p => p !== anchor && !(pair && pair.unit.players.some(x => x.id === p.id)));
+    const rest = sortedMembers.filter(p => p !== anchor && !(pair && pair.players.some(x => x.id === p.id)));
     const guests  = members.filter(isGuest);
     const rookies = members.filter(p => !isGuest(p) && p.rounds_played != null && p.rounds_played <= 3);
     const vets    = members.filter(p => (p.rounds_played || 0) >= 30);
@@ -1026,9 +1068,10 @@ function buildTeamNarratives(trace, assignments, checkedIds, method) {
     } else {
       note = pickPhrase(['No surprises on the card', 'Nothing hidden in the form'], salt + 30);
     }
-    if (placements.some(e => e.overflow)) note += ', and this team took the overflow from an oversized coupled entry';
+    if (overflowTeams.includes(t)) note += ', and this team took the overflow from an oversized coupled entry';
 
     out[t] = `${line1} ${note}. Morning line: ${morningLine(teamAvg, fieldAvg)}.`;
+    if (adjustedTeams.includes(t)) out[t] += ' ' + NARRATIVE_ADJUSTED;
   }
   return out;
 }
@@ -1855,6 +1898,7 @@ async function finalizeRound() {
   state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
+  state.teamStoryMeta   = { method: null, overflowTeams: [], adjustedTeams: [] };
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
