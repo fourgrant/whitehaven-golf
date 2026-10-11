@@ -40,7 +40,7 @@ const state = {
   paidOut: new Set(),
   pairGroups: [],  // [[playerId, playerId, ...], ...] — honored by balance/shuffle
   teamNarratives: {}, // team letter -> two-line bookmaker's card, rebuilt from current membership
-  teamStoryMeta: { method: null, overflowTeams: [], adjustedTeams: [] }, // how the stories were seeded
+  teamStoryMeta: { method: null, pairs: [], overflowTeams: [], adjustedTeams: [] }, // how the stories were seeded
   activityData: null, // { totalTrackedRounds, playerActivity: Map<playerId, offset> }
   seasonLedger: null, // cached promise → { year, roundIds, roundMeta, byPlayer } (The Bank + Trophy Case)
 };
@@ -428,8 +428,8 @@ async function loadCurrentRound() {
     // Treat them as a plain balance so their cards regenerate instead of vanishing.
     const meta = data.round_state.teamStoryMeta;
     state.teamStoryMeta = meta
-      ? { method: meta.method || null, overflowTeams: meta.overflowTeams || [], adjustedTeams: meta.adjustedTeams || [] }
-      : { method: Object.keys(state.teamNarratives).length ? 'balance' : null, overflowTeams: [], adjustedTeams: [] };
+      ? { method: meta.method || null, pairs: meta.pairs || [], overflowTeams: meta.overflowTeams || [], adjustedTeams: meta.adjustedTeams || [] }
+      : { method: Object.keys(state.teamNarratives).length ? 'balance' : null, pairs: [], overflowTeams: [], adjustedTeams: [] };
   }
   // Sync team scores from DB (source of truth over localStorage)
   if (data.team_scores && Object.keys(data.team_scores).length) {
@@ -582,7 +582,7 @@ async function clearActiveRound() {
   state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
-  state.teamStoryMeta   = { method: null, overflowTeams: [], adjustedTeams: [] };
+  state.teamStoryMeta   = { method: null, pairs: [], overflowTeams: [], adjustedTeams: [] };
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
@@ -941,6 +941,8 @@ function runBalancer(method) {
   Object.assign(state.teamAssignments, assignments);
   state.teamStoryMeta = {
     method,
+    // Pairings the balancer honored, snapshotted so the coupled-entry line survives reloads.
+    pairs: units.filter(u => u.pair).map(u => u.players.map(p => p.id)),
     overflowTeams: [...new Set(trace.filter(e => e.overflow).map(e => e.team))],
     adjustedTeams: [],
   };
@@ -1021,9 +1023,9 @@ function buildTeamNarratives(assignments, checkedIds, meta) {
     // Line 1 — who heads the card, and any coupled entry.
     const sortedMembers = [...members].sort((a, b) => playerAvg(a) - playerAvg(b));
     const anchor = sortedMembers[0];
-    // A coupled entry is a Play-Together pairing whose members are all still on this team.
+    // A coupled entry is a pairing the balancer honored whose members are all still on this team.
     const memberIds = new Set(members.map(p => p.id));
-    const pairIds = state.pairGroups
+    const pairIds = (meta.pairs || [])
       .map(g => g.filter(id => memberIds.has(id)))
       .find(g => g.length >= 2);
     const pair = pairIds
@@ -1879,7 +1881,7 @@ async function finalizeRound() {
 
   // Mark round complete and save team scores BEFORE recalculating stats, so the
   // round just finalized is included by recalcPlayerStats' status='complete' filter.
-  await db.from('rounds').update({ status: 'complete', team_scores: state.teamScores }).eq('id', state.currentRound.id);
+  await db.from('rounds').update({ status: 'complete', team_scores: state.teamScores, round_state: roundStatePayload() }).eq('id', state.currentRound.id);
 
   // Recompute each participant's stats purely from their finalized rounds.
   for (const rp of state.roundPlayers) {
@@ -1898,7 +1900,7 @@ async function finalizeRound() {
   state.holeScores      = {};
   state.cthWinners      = { hole2: null, hole5: null };
   state.teamNarratives  = {};
-  state.teamStoryMeta   = { method: null, overflowTeams: [], adjustedTeams: [] };
+  state.teamStoryMeta   = { method: null, pairs: [], overflowTeams: [], adjustedTeams: [] };
   state.paidIn          = new Set();
   state.paidOut         = new Set();
   localStorage.removeItem('whg_round_id');
