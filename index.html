@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Sheila">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=94b5608f">
+  <link rel="stylesheet" href="style.css?v=4d4ee0dc">
 </head>
 <body>
 
@@ -540,6 +540,7 @@
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
         <li><strong>Names</strong> are matched to the roster. "Stu" finds Stuart, "T$" finds Terrence. A name that fits two players (John, Joe) shows a <em>Which one?</em> pick; an unknown name offers <em>Add as guest</em>. Guests start with today's score as their average.</li>
+        <li><strong>Guest names are editable.</strong> Picking <em>Add as guest</em> opens a name box under the dropdown, prefilled from the card. Use it when a newcomer shares a first name with someone on the roster (a second Andy, say): type a last name or initial and the row shows <em>New player</em>. A name that's already taken is flagged before anything is saved.</li>
         <li><strong>Totals are cross-checked.</strong> If the nine holes don't add up to the number in the Out column, the row is flagged with both numbers and a one-tap <em>use</em> button. Every hole and total is editable right there.</li>
         <li><strong>Team scores are computed</strong> from the holes: best 3 of 4 balls per hole (best 2 of 3 for three-man teams), relative to par, cumulative — the same math as the running row on the card. If the card's handwritten row ends on a different number, you see both and choose.</li>
         <li><strong>Skins are suggested:</strong> any hole where one player beat everyone outright is listed, and marked on the Skins section when you apply (untick the box to skip). Ties are left as <em>No skin</em>.</li>
@@ -726,6 +727,18 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.7</span>
+          <span class="release-date">October 21, 2026</span>
+        </div>
+        <h3>Guests Can Have a Different Name Than the Card</h3>
+        <ul class="release-list">
+          <li><strong>Name the guest yourself.</strong> On the scorecard review, choosing <em>Add as guest</em> now opens a name box under the dropdown, prefilled with what's on the card. Change it to "Andy Mullins" when the roster already has an Andy; the row shows <em>New player</em> once the name is free.</li>
+          <li><strong>Clashes are caught before saving.</strong> A guest name that matches someone on the roster (or another guest on the same upload) is flagged on the row and listed under the Apply button, instead of failing with a database error partway through applying.</li>
+          <li>The Teams tab <em>+ Add Guest</em> button and the Paste List guest option now give the same plain message when a name is taken, and Paste List asks for a different name on the spot.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.6</span>
@@ -1015,10 +1028,10 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=94b5608f"></script>
+<script src="config.js?v=4d4ee0dc"></script>
 <!-- App logic -->
-<script src="app.js?v=94b5608f"></script>
-<script src="scorecard.js?v=94b5608f"></script>
+<script src="app.js?v=4d4ee0dc"></script>
+<script src="scorecard.js?v=4d4ee0dc"></script>
 
 </body>
 </html>
