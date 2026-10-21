@@ -168,6 +168,7 @@ function scAnalyzeCard(raw, index, thumb) {
       confidence: p.confidence || 'medium',
       totalOverride: null,   // set when commish edits the total by hand
       playerId: null, guest: false, skip: false, ambiguous: [],
+      guestName: String(p.name_as_written || '').trim(),   // editable when "Add as guest" is picked
     };
     scMatchRow(row);
     return row;
@@ -316,11 +317,31 @@ function scPlayerOptions(row) {
   return `
     <option value="">— Pick player</option>
     ${top}
-    <option value="__guest" ${row.guest ? 'selected' : ''}>＋ Add “${escHtml(row.name)}” as guest</option>
+    <option value="__guest" ${row.guest ? 'selected' : ''}>＋ Add “${escHtml(row.guestName || row.name)}” as guest</option>
     <option value="__skip"  ${row.skip  ? 'selected' : ''}>Skip this row</option>
     <optgroup label="Roster">${active.map(opt).join('')}</optgroup>
     ${inactive.length ? `<optgroup label="Inactive">${inactive.map(opt).join('')}</optgroup>` : ''}
   `;
+}
+
+// A guest's name must not collide with anyone already on the roster (the players table
+// has a unique name constraint) or with another guest row in this upload.
+function scNameKey(name) { return String(name || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+function scGuestConflict(row) {
+  const key = scNameKey(row.guestName);
+  if (!key) return null;
+  const existing = state.players.find(p => scNameKey(p.name) === key);
+  if (existing) return { kind: 'roster', name: existing.name };
+  for (const c of sc.cards) for (const r of scActiveRows(c)) {
+    if (r !== row && r.guest && scNameKey(r.guestName) === key) return { kind: 'guest', name: r.guestName };
+  }
+  return null;
+}
+
+function scGuestInput(ci, pi, row) {
+  if (!row.guest) return '';
+  return `<input type="text" id="sc-guest-${ci}-${pi}" class="sc-guest-name" value="${escHtml(row.guestName)}" placeholder="Guest's name" autocomplete="off" oninput="scSetGuestName(${ci},${pi},this.value)">`;
 }
 
 function scFmtRel(n) { return n === null || n === undefined ? '—' : (n > 0 ? `+${n}` : n === 0 ? 'E' : `${n}`); }
@@ -338,6 +359,13 @@ function scRenderReview() {
       if (!row.skip) {
         if (row.playerId && dupes.has(row.playerId)) flags.push('<span class="sc-flag sc-flag-bad">Duplicate player</span>');
         if (!row.playerId && !row.guest) flags.push(`<span class="sc-flag sc-flag-bad">${row.ambiguous.length ? 'Which one?' : 'Not on roster'}</span>`);
+        if (row.guest) {
+          const conflict = scGuestConflict(row);
+          if (!scNameKey(row.guestName)) flags.push('<span class="sc-flag sc-flag-bad">Guest needs a name</span>');
+          else if (conflict?.kind === 'roster') flags.push(`<span class="sc-flag sc-flag-bad">Name taken by “${escHtml(conflict.name)}” — add a last name</span>`);
+          else if (conflict?.kind === 'guest') flags.push('<span class="sc-flag sc-flag-bad">Two guests with the same name</span>');
+          else flags.push('<span class="sc-flag sc-flag-ok">New player</span>');
+        }
         if (sum !== null && row.totalWritten !== null && sum !== row.totalWritten && row.totalOverride === null) {
           flags.push(`<span class="sc-flag sc-flag-warn">Holes add to ${sum}, card says ${row.totalWritten} <button class="sc-link" onclick="scUseSum(${ci},${pi})">use ${sum}</button></span>`);
         }
@@ -347,7 +375,7 @@ function scRenderReview() {
       return `
         <tr class="${row.skip ? 'sc-row-skip' : ''}">
           <td class="sc-name" title="${escHtml(row.name)}">${escHtml(row.name)}</td>
-          <td class="sc-player"><select onchange="scSetName(${ci},${pi},this.value)">${scPlayerOptions(row)}</select></td>
+          <td class="sc-player"><select onchange="scSetName(${ci},${pi},this.value)">${scPlayerOptions(row)}</select>${scGuestInput(ci, pi, row)}</td>
           ${row.holes.map((h, hi) => `<td><input type="number" inputmode="numeric" class="sc-hole ${h === null ? 'sc-hole-missing' : ''}" value="${h === null ? '' : h}" oninput="scSetHole(${ci},${pi},${hi},this.value)"></td>`).join('')}
           <td><input type="number" inputmode="numeric" class="sc-total" value="${total === null ? '' : total}" oninput="scSetTotal(${ci},${pi},this.value)"></td>
           <td class="sc-flags">${flags.join(' ')}</td>
@@ -434,6 +462,12 @@ function scProblems() {
   sc.cards.forEach((c, ci) => {
     if (!c.letter) out.push(`Card ${ci + 1}: pick a team letter.`);
     if (scActiveRows(c).some(r => !r.playerId && !r.guest)) out.push(`Card ${ci + 1}: every row needs a player, a guest, or Skip.`);
+    scActiveRows(c).filter(r => r.guest).forEach(r => {
+      const conflict = scGuestConflict(r);
+      if (!scNameKey(r.guestName)) out.push(`Card ${ci + 1}: the guest row needs a name.`);
+      else if (conflict?.kind === 'roster') out.push(`Card ${ci + 1}: “${r.guestName}” is already on the roster — give the guest a different name (add a last name or initial), or pick the roster player.`);
+      else if (conflict?.kind === 'guest') out.push(`Card ${ci + 1}: two guests are named “${r.guestName}”.`);
+    });
     if (scActiveRows(c).some(r => scRowTotal(r) === null)) out.push(`Card ${ci + 1}: every player needs a 9-hole total.`);
     if (c.teamScore === null) out.push(`Card ${ci + 1}: needs a team score.`);
   });
@@ -459,12 +493,21 @@ function scZoom(ci) {
 function scSetName(ci, pi, value) {
   const row = sc.cards[ci].rows[pi];
   row.guest = false; row.skip = false; row.playerId = null;
-  if (value === '__guest') row.guest = true;
+  if (value === '__guest') { row.guest = true; if (!row.guestName) row.guestName = row.name; }
   else if (value === '__skip') row.skip = true;
   else if (value) row.playerId = value;
   scRecompute(sc.cards[ci]);
   if (sc.mode === 'scores') scAssignDefaultLetters();
   scRenderReview();
+  if (value === '__guest') {
+    const input = document.getElementById(`sc-guest-${ci}-${pi}`);
+    if (input) { input.focus(); input.select(); }
+  }
+}
+
+function scSetGuestName(ci, pi, value) {
+  sc.cards[ci].rows[pi].guestName = value;
+  scRenderReviewPreserving();
 }
 
 function scSetHole(ci, pi, hi, value) {
@@ -537,7 +580,7 @@ async function scApply() {
       for (const row of scActiveRows(card)) {
         if (!row.guest) continue;
         const total = scRowTotal(row);
-        const guest = await scCreateGuest(row.name, total);
+        const guest = await scCreateGuest(row.guestName.trim(), total);
         row.playerId = guest.id; row.guest = false;
       }
     }
@@ -643,7 +686,12 @@ async function scCreateGuest(name, todayScore) {
     return guest;
   }
   const { data, error } = await db.from('players').insert({ name, avg_score: avg, rounds_played: 0 }).select().single();
-  if (error) throw new Error(`Couldn't add guest ${name}: ${error.message}`);
+  if (error) {
+    if (error.code === '23505' || /players_name_key|duplicate key/i.test(error.message || '')) {
+      throw new Error(`A player named “${name}” already exists. Give the guest a different name (add a last name or initial) and try again.`);
+    }
+    throw new Error(`Couldn't add guest ${name}: ${error.message}`);
+  }
   state.players.push(data);
   state.players.sort((a, b) => (a.avg_score || 99) - (b.avg_score || 99));
   return data;
