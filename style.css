@@ -1387,6 +1387,7 @@ body.is-commish .commish-only-flex { display: flex; }
 .sc-table td { padding: 3px 2px; text-align: center; border-top: 1px solid var(--border); vertical-align: middle; }
 .sc-table td.sc-name { text-align: left; font-family: 'DM Mono', monospace; font-size: 12px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-table td.sc-player select { max-width: 150px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--warm-white); }
+.sc-table td.sc-player input.sc-guest-name { display: block; width: 150px; max-width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid var(--gold); border-radius: 6px; font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--warm-white); }
 .sc-hole, .sc-total { width: 34px; padding: 4px 2px; text-align: center; border: 1px solid var(--border); border-radius: 5px; font-family: 'DM Mono', monospace; font-size: 13px; background: var(--warm-white); }
 .sc-hole::-webkit-outer-spin-button, .sc-hole::-webkit-inner-spin-button, .sc-total::-webkit-outer-spin-button, .sc-total::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .sc-hole, .sc-total { -moz-appearance: textfield; }

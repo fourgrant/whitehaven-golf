@@ -1143,9 +1143,22 @@ function removePairing(idx) {
   renderPairingsSection();
 }
 
+// The players table has a unique name constraint, so a guest can't share a name with
+// anyone already on the roster (active or inactive). Returns the clashing player or null.
+function findPlayerByName(name) {
+  const key = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!key) return null;
+  return state.players.find(p => String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === key) || null;
+}
+
+function guestNameTakenMessage(name) {
+  return `“${name.trim()}” is already on the roster. Give the guest a different name — add a last name or initial.`;
+}
+
 async function addGuest() {
   const name = prompt('Guest player name:');
   if (!name?.trim()) return;
+  if (findPlayerByName(name)) { toast(guestNameTakenMessage(name)); return; }
   const avgInput = prompt(`Estimated average score for ${name.trim()} (e.g. 40):`);
   const avg = parseFloat(avgInput) || 40;
 
@@ -1330,6 +1343,12 @@ function resolvePastedName(rowIndex, playerId) {
 }
 
 async function resolvePastedNameGuest(name, rowIndex) {
+  if (findPlayerByName(name)) {
+    const alt = prompt(`${guestNameTakenMessage(name)}\n\nGuest player name:`, name);
+    if (!alt?.trim()) return;
+    if (findPlayerByName(alt)) { toast(guestNameTakenMessage(alt)); return; }
+    name = alt.trim();
+  }
   const avgInput = prompt(`Estimated average score for ${name} (e.g. 40):`);
   const avg = parseFloat(avgInput) || 40;
 
