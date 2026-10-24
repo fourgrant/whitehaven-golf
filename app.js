@@ -1203,52 +1203,59 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Lowercase and drop punctuation so "Joe J." and "joe j" compare the same.
+function pasteNameKey(str) {
+  return String(str).toLowerCase().replace(/[^\p{L}\p{N}$\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function pasteCandidates(pool, token) {
+  const words = token.split(' ');
+  const parts = p => pasteNameKey(p.name).split(' ');
+
+  // 1. Exact full name
+  let candidates = pool.filter(p => pasteNameKey(p.name) === token);
+
+  // 2. First name only (single word in paste)
+  if (!candidates.length && words.length === 1) {
+    candidates = pool.filter(p => parts(p)[0] === token);
+  }
+
+  // 3. Last name only (single word in paste)
+  if (!candidates.length && words.length === 1) {
+    candidates = pool.filter(p => parts(p).at(-1) === token);
+  }
+
+  // 4. First name + last initial (e.g. "John M" or "Joe J." → "Joe Jones")
+  if (!candidates.length && words.length === 2 && words[1].length === 1) {
+    candidates = pool.filter(p => {
+      const ps = parts(p);
+      return ps.length > 1 && ps[0] === words[0] && ps.at(-1).startsWith(words[1]);
+    });
+  }
+
+  // 5. Contains fallback
+  if (!candidates.length) {
+    candidates = pool.filter(p => {
+      const pName = pasteNameKey(p.name);
+      return pName.includes(token) || token.includes(pName);
+    });
+  }
+
+  return [...new Map(candidates.map(p => [p.id, p])).values()];
+}
+
 function matchPastedNames(lines, players) {
-  const active = players.filter(p => p.active !== false);
+  const active   = players.filter(p => p.active !== false);
+  const inactive = players.filter(p => p.active === false);
   const results = [];
 
   for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
+    const token = pasteNameKey(raw);
+    if (!token) continue;
 
-    const token = line.toLowerCase();
-    const words = token.split(/\s+/);
-    let candidates = [];
-
-    // 1. Exact full name
-    candidates = active.filter(p => p.name.toLowerCase() === token);
-
-    // 2. First name only (single word in paste)
-    if (!candidates.length && words.length === 1) {
-      candidates = active.filter(p => p.name.toLowerCase().split(/\s+/)[0] === token);
-    }
-
-    // 3. Last name only (single word in paste)
-    if (!candidates.length && words.length === 1) {
-      candidates = active.filter(p => {
-        const parts = p.name.toLowerCase().split(/\s+/);
-        return parts[parts.length - 1] === token;
-      });
-    }
-
-    // 4. First name + last initial (e.g. "John M" → "John Markham")
-    if (!candidates.length && words.length === 2 && words[1].length === 1) {
-      candidates = active.filter(p => {
-        const parts = p.name.toLowerCase().split(/\s+/);
-        return parts[0] === words[0] && parts[parts.length - 1].startsWith(words[1]);
-      });
-    }
-
-    // 5. Contains fallback
-    if (!candidates.length) {
-      candidates = active.filter(p => {
-        const pName = p.name.toLowerCase();
-        return pName.includes(token) || token.includes(pName);
-      });
-    }
-
-    // Deduplicate by id
-    const unique = [...new Map(candidates.map(p => [p.id, p])).values()];
+    // Active players first; inactive only if nobody active fits.
+    let unique = pasteCandidates(active, token);
+    if (!unique.length) unique = pasteCandidates(inactive, token);
 
     if (unique.length === 1) {
       results.push({ raw, matched: unique[0], ambiguous: [] });
@@ -1259,6 +1266,21 @@ function matchPastedNames(lines, players) {
     }
   }
   return results;
+}
+
+// Dropdown for an unresolved pasted name: likely matches first, then every
+// player on the roster (inactive included) so the commish can pick anyone.
+function pastePlayerPicker(rowIndex, suggested) {
+  const opt = p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}${p.active === false ? ' (inactive)' : ''}${state.checkedIn.has(p.id) ? ' ✓' : ''}</option>`;
+  const suggestedIds = new Set(suggested.map(p => p.id));
+  const rest = state.players
+    .filter(p => !suggestedIds.has(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return `<select onchange="resolvePastedName(${rowIndex}, this.value)" style="flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+      <option value="">— Pick player</option>
+      ${suggested.length ? `<optgroup label="Likely matches">${suggested.map(opt).join('')}</optgroup>` : ''}
+      <optgroup label="All players">${rest.map(opt).join('')}</optgroup>
+    </select>`;
 }
 
 function openPasteModal() {
@@ -1319,14 +1341,8 @@ function submitPasteList() {
     unresolved.map((r, i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;" id="paste-row-${i}">
         <span style="font-family:'DM Mono',monospace;font-size:13px;min-width:80px;flex-shrink:0;">${escHtml(r.raw)}</span>
-        ${r.ambiguous.length > 1
-          ? `<select onchange="resolvePastedName(${i}, this.value)" style="flex:1;min-width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
-               <option value="">— Pick player</option>
-               ${r.ambiguous.map(p => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`).join('')}
-             </select>`
-          : `<span style="font-size:12px;color:var(--text-muted);flex:1;">Not found</span>
-             <button class="btn btn-outline btn-sm" onclick="resolvePastedNameGuest('${escHtml(r.raw)}', ${i})">+ Add Guest</button>`
-        }
+        ${pastePlayerPicker(i, r.ambiguous)}
+        <button class="btn btn-outline btn-sm" onclick="resolvePastedNameGuest('${escHtml(r.raw).replace(/'/g, "\\'")}', ${i})">+ Add Guest</button>
         <button class="btn btn-outline btn-sm" style="color:var(--text-muted);" onclick="dismissPasteRow(${i})">Skip</button>
       </div>
     `).join('');
@@ -1340,6 +1356,7 @@ function resolvePastedName(rowIndex, playerId) {
     state.checkedIn.add(playerId);
     if (!state.teamAssignments[playerId]) state.teamAssignments[playerId] = '';
     persistCheckIn(playerId);
+    if (isInactivePlayer(playerId)) teamsInactiveExpanded = true;
     renderPlayerAssignList();
     renderTeamPreview();
     updateCalc();
