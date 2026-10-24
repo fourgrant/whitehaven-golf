@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Sheila">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=89bbda17">
+  <link rel="stylesheet" href="style.css?v=854fee37">
 </head>
 <body>
 
@@ -487,7 +487,7 @@
         If you used the RSVP link, click <strong>Import RSVPs</strong> at the top to check everyone in at once. Otherwise, tap each player's name to check them in manually.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;">
-        You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread.
+        You can also use the <strong>Paste List</strong> button to bulk-check-in players by pasting a list of names — handy when you have a pre-confirmed lineup in a text thread. Nicknames like "Joe J." or "T$" are matched to the roster, inactive players included. Any name Sheila can't place gets a <strong>Pick player</strong> dropdown with likely matches at the top and the whole roster below, plus <strong>+ Add Guest</strong> for someone brand new.
       </p>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
         <strong>Or skip check-in entirely:</strong> if the groups already went out and you have their paper cards, tap <strong>📷 Upload Scorecards</strong>, snap one photo per card, and Sheila checks in every name on the cards, makes each card a team, enters every score, and locks the round in — all from one review screen. See <em>Upload Scorecards</em> under Step 3 for how the review works.
@@ -744,6 +744,7 @@
           <li><strong>No more email and phone on the RSVP form.</strong> Pick your name and go.</li>
           <li><strong>RSVPs stay open until 9 AM on round day</strong> instead of closing at midnight the night before, so morning drop-outs can reply "out" and the list stays accurate.</li>
           <li><strong>Rename players.</strong> Edit on the Players tab now includes the name, so "Andy" can become "Andy B." Scores, averages and history follow the player, not the name. The red "No contact info" warning is gone now that RSVPs don't need it.</li>
+          <li><strong>Paste List: pick anyone.</strong> Unresolved names now get a dropdown of the whole roster (inactive players included), so you can point "Joe J." at Joe Jones by hand. Matching also ignores punctuation, so "Joe J." and "Joe B." match on their own now, and inactive players are found when no active player fits.</li>
           <li><strong>Fix:</strong> choosing "Not listed — add me" and typing a name that's already on the roster no longer resets that player's average and round count. The RSVP goes to the existing player.</li>
         </ul>
       </div>
@@ -1048,10 +1049,10 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=89bbda17"></script>
+<script src="config.js?v=854fee37"></script>
 <!-- App logic -->
-<script src="app.js?v=89bbda17"></script>
-<script src="scorecard.js?v=89bbda17"></script>
+<script src="app.js?v=854fee37"></script>
+<script src="scorecard.js?v=854fee37"></script>
 
 </body>
 </html>
