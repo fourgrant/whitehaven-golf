@@ -57,6 +57,14 @@ export function todayCentral(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 }
 
+// Now in Central time as "YYYY-MM-DD HH:MM:SS", so it compares as a string.
+function nowCentral(): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).format(new Date());
+}
+
 export function fmtDate(date: string): string {
   return new Date(date + "T12:00:00Z").toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
@@ -95,9 +103,11 @@ export async function getRsvpNames(db: SupabaseClient, roundId: string): Promise
   return (data ?? []).map((r: { name: string }) => r.name);
 }
 
-// RSVPs close the night before, matching rsvp.html.
+// RSVPs close at tee time, 9 AM Central on round day, matching rsvp.js. Keeping
+// them open that morning lets late drop-outs say "out".
+export const RSVP_CLOSE = "09:00:00";
 export function rsvpsClosed(round: Round): boolean {
-  return round.date <= todayCentral();
+  return nowCentral() >= `${round.date} ${RSVP_CLOSE}`;
 }
 
 // ===== MESSAGES =====
@@ -133,7 +143,7 @@ export function msgReminder(round: Round, names: string[]): string {
   } else {
     lines.push(``, `Nobody's RSVP'd yet.`);
   }
-  lines.push(``, `Not on the list? Reply "in" before midnight.`);
+  lines.push(``, `Reply "in" or "out" by 9 AM tomorrow — that's when RSVPs close.`);
   return lines.join("\n");
 }
 
