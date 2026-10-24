@@ -170,7 +170,7 @@ Nothing else changes: the app calls the function through the Supabase client wit
 ### RSVP system
 
 - Commish creates a round → Sheila posts it to the league GroupMe with the `rsvp.html?round=<uuid>` link
-- Players reply "in" / "out" in the chat (or "in as <roster name>" the first time if their GroupMe name doesn't match), or pick their name on the RSVP page
+- Players reply "in" / "out" in the chat (or "in as <roster name>" the first time if their GroupMe name doesn't match; "in as new" for first-timers), or pick their name on the RSVP page
 - RSVPs close after midnight the night before the round
 - Sheila posts a reminder with who's in the day before
 - Commish sees all RSVPs in the Teams tab and can import them all as checked-in with one click

@@ -5,6 +5,7 @@
 //
 //   in / i'm in / count me in      → RSVP for the next round
 //   in as <roster name>            → RSVP, and remember which player you are
+//   in as new                      → first-timer: add to the roster under their GroupMe name, then RSVP
 //   out / i'm out / count me out   → drop your RSVP
 //   who's in                       → post the current list
 //
@@ -19,7 +20,7 @@
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
-  adminClient, getOpenRound, getRsvpNames, postToGroup, rsvpsClosed, fmtDate, msgRsvpList, rsvpLink,
+  adminClient, getOpenRound, getRsvpNames, postToGroup, rsvpsClosed, fmtDate, msgRsvpList,
 } from "../_shared/groupme.ts";
 
 type Player = { id: string; name: string; groupme_user_id: string | null };
@@ -124,17 +125,28 @@ async function handle(
   // Who is this?
   const { data: players } = await db.from("players").select("id, name, groupme_user_id").eq("active", true);
   const roster = (players ?? []) as Player[];
+  const linked = roster.find(p => p.groupme_user_id === msg.user_id) ?? null;
   let player: Player | null;
-  if (cmd.inAsName) {
+  let isNewPlayer = false;
+  if (cmd.inAsName === "new") {
+    player = linked;
+    if (!player) {
+      player = await addPlayer(db, msg.name.trim());
+      isNewPlayer = true;
+    }
+  } else if (cmd.inAsName) {
     player = findPlayer(roster, cmd.inAsName);
     if (!player) {
-      await postToGroup(`I couldn't find "${cmd.inAsName}" on the roster. Use the RSVP page to add yourself: ${rsvpLink(round)}`);
+      await postToGroup(`I couldn't find "${cmd.inAsName}" on the roster. First time playing? Reply "in as new" and I'll add you as ${msg.name}.`);
       return;
     }
   } else {
-    player = roster.find(p => p.groupme_user_id === msg.user_id) ?? findPlayer(roster.filter(p => !p.groupme_user_id), msg.name);
+    player = linked ?? findPlayer(roster.filter(p => !p.groupme_user_id), msg.name);
     if (!player) {
-      await postToGroup(`${msg.name}, I'm not sure who you are on the roster. Reply "in as <your name>" — e.g. "in as Randy K."`);
+      await postToGroup(
+        `${msg.name}, I don't see you on the roster.\n` +
+        `• Played with us before? Reply "in as <your roster name>", e.g. "in as Randy K."\n` +
+        `• First time? Reply "in as new" and I'll add you as ${msg.name}.`);
       return;
     }
   }
@@ -154,7 +166,22 @@ async function handle(
   const { error } = await db.from("rsvps").insert({ round_id: round.id, player_id: player.id, name: player.name });
   const n = await countIn(db, round.id);
   if (error && error.code !== "23505") throw error;
-  await postToGroup(error
-    ? `${player.name}, you're already in for ${when}. ${n} in.`
+  await postToGroup(
+    error ? `${player.name}, you're already in for ${when}. ${n} in.`
+    : isNewPlayer ? `👋 Welcome, ${player.name}! You're on the roster and in for ${when}. ${n} in.`
     : `✅ ${player.name} is in for ${when}. ${n} in.`);
+}
+
+// Adds a first-timer the same way the RSVP page's "Not listed — add me" does.
+// If the name is already taken (e.g. an inactive player), use that player.
+async function addPlayer(db: SupabaseClient, name: string): Promise<Player> {
+  const { data, error } = await db.from("players")
+    .insert({ name, avg_score: 40, rounds_played: 0 })
+    .select("id, name, groupme_user_id").single();
+  if (!error) return data as Player;
+  if (error.code !== "23505") throw error;
+  const { data: existing, error: e2 } = await db.from("players")
+    .select("id, name, groupme_user_id").eq("name", name).single();
+  if (e2) throw e2;
+  return existing as Player;
 }
