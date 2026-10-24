@@ -2880,12 +2880,12 @@ function renderPlayersAdmin() {
     const isActive = p.active !== false;
     const avg      = p.avg_score != null ? parseFloat(p.avg_score).toFixed(1) : '—';
     const contactLine = (p.email || p.phone)
-      ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone].filter(Boolean).join(' · ')}</div>`
-      : `<div class="player-admin-meta" style="margin-top:2px;color:#b94040;">No contact info</div>`;
+      ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone].filter(Boolean).map(escHtml).join(' · ')}</div>`
+      : '';
     return `
       <div class="player-admin-row${isActive ? '' : ' player-inactive'}">
         <div style="flex:1;min-width:0;">
-          <div class="player-admin-name">${p.name}</div>
+          <div class="player-admin-name">${escHtml(p.name)}</div>
           <div class="player-admin-meta">${p.rounds_played || 0} rounds · avg ${avg}</div>
           ${contactLine}
         </div>
@@ -2899,11 +2899,13 @@ function renderPlayersAdmin() {
       </div>
       <div id="edit-${p.id}" style="display:none;padding:12px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <input type="email" id="edit-email-${p.id}" value="${p.email || ''}" placeholder="Email"
+          <input type="text" id="edit-name-${p.id}" value="${escHtml(p.name)}" placeholder="Name (e.g. Randy K.)"
+            style="flex:1 1 100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+          <input type="email" id="edit-email-${p.id}" value="${escHtml(p.email || '')}" placeholder="Email"
             style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
-          <input type="tel" id="edit-phone-${p.id}" value="${p.phone || ''}" placeholder="Phone"
+          <input type="tel" id="edit-phone-${p.id}" value="${escHtml(p.phone || '')}" placeholder="Phone"
             style="flex:1;min-width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
-          <button class="btn btn-primary btn-sm" onclick="savePlayerContact('${p.id}')">Save</button>
+          <button class="btn btn-primary btn-sm" onclick="savePlayerEdit('${p.id}')">Save</button>
           <button class="btn btn-outline btn-sm" onclick="togglePlayerEdit('${p.id}')">Cancel</button>
         </div>
       </div>
@@ -2916,15 +2918,29 @@ function togglePlayerEdit(playerId) {
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
-async function savePlayerContact(playerId) {
+// Scores, averages and payouts all hang off player_id, so a rename shows up
+// everywhere (History included) without touching any round data.
+async function savePlayerEdit(playerId) {
+  const name  = document.getElementById('edit-name-' + playerId)?.value.replace(/\s+/g, ' ').trim();
   const email = document.getElementById('edit-email-' + playerId)?.value.trim() || null;
   const phone = document.getElementById('edit-phone-' + playerId)?.value.trim() || null;
   if (!db) return;
-  const { error } = await db.from('players').update({ email, phone }).eq('id', playerId);
-  if (error) { toast('Error: ' + error.message); return; }
+  if (!name) { toast('Name can\'t be blank.'); return; }
   const p = state.players.find(p => p.id === playerId);
-  if (p) { p.email = email; p.phone = phone; }
-  toast('Contact info saved.');
+  const renamed = p && p.name !== name;
+
+  const { error } = await db.from('players').update({ name, email, phone }).eq('id', playerId);
+  if (error) {
+    toast(error.code === '23505' ? `"${name}" is already on the roster.` : 'Error: ' + error.message);
+    return;
+  }
+  // RSVP rows keep a copy of the name for the list; keep it in step.
+  if (renamed) await db.from('rsvps').update({ name }).eq('player_id', playerId);
+
+  if (p) { p.name = name; p.email = email; p.phone = phone; }
+  state.activityData = null;
+  state.seasonLedger = null;
+  toast(renamed ? `Renamed to ${name}.` : 'Player saved.');
   renderPlayersAdmin();
 }
 
