@@ -41,7 +41,7 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 - `.github/workflows/deploy.yml` — injects config.js, deploys to `gh-pages` branch
 - `.github/workflows/reminders.yml` — daily cron; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round
 - `supabase/functions/groupme-post/` — Sheila posts to GroupMe (rsvp_open, rsvp_list, reminder, teams, results); text is built server-side from the DB. Secret: `GROUPME_BOT_ID`
-- `supabase/functions/groupme-callback/` — bot callback; parses "in" / "out" / "in as <name>" / "who's in" and writes `rsvps`. Deployed `--no-verify-jwt`; checks `?secret=` against `GROUPME_CALLBACK_SECRET`
+- `supabase/functions/groupme-callback/` — bot callback; parses "in" / "out" / "in as <name>" / "in as new" / "who's in" and writes `rsvps`. Deployed `--no-verify-jwt`; checks `?secret=` against `GROUPME_CALLBACK_SECRET`
 - `supabase/functions/_shared/groupme.ts` — shared message builders and GroupMe post helper
 
 ## Design System
