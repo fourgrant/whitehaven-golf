@@ -17,8 +17,8 @@
 3. Set the date, course, and buy-in → click **Save Round**
 4. A green **RSVP Link** card appears — click **Copy Link** and paste it into the group chat
 5. Players open the link, pick their name from the dropdown, and submit
-   - First-timers enter email + phone (saved for next time)
-   - If you have Resend configured, players automatically get a reminder email the day before
+   - Or players just reply "in" in the league GroupMe — Sheila records it
+   - Sheila posts a reminder to GroupMe the day before
 
 ### Day of the round — check in players and make teams
 
@@ -84,11 +84,20 @@ In your GitHub repo → **Settings → Secrets and variables → Actions → New
 | `SUPABASE_URL` | `https://xxxx.supabase.co` | App + reminders |
 | `SUPABASE_ANON_KEY` | `eyJ...` (anon key) | App |
 | `COMMISH_PASSWORD` | A password only the commish knows | App |
-| `SUPABASE_SERVICE_KEY` | `eyJ...` (service_role key) | Email reminders |
-| `RESEND_API_KEY` | From [resend.com](https://resend.com) | Email reminders |
-| `FROM_EMAIL` | `reminders@yourdomain.com` | Email reminders |
+| `SUPABASE_SERVICE_KEY` | `eyJ...` (service_role key) | GroupMe reminders |
 
-> The last three secrets are only needed if you want automated email reminders. The app works without them.
+> `SUPABASE_SERVICE_KEY` is only needed for the day-before GroupMe reminder. The app works without it.
+
+GroupMe itself is configured as Supabase function secrets, not GitHub secrets:
+
+```
+supabase secrets set GROUPME_BOT_ID=<bot id from dev.groupme.com/bots>
+supabase secrets set GROUPME_CALLBACK_SECRET=<any long random string>
+supabase functions deploy groupme-post
+supabase functions deploy groupme-callback --no-verify-jwt
+```
+
+Set the bot's Callback URL to `https://<ref>.supabase.co/functions/v1/groupme-callback?secret=<GROUPME_CALLBACK_SECRET>`.
 
 ### 5. Push to `main`
 
@@ -154,16 +163,16 @@ Nothing else changes: the app calls the function through the Supabase client wit
 | Round | Commish only | Create/edit the active round; get the RSVP link |
 | Teams | Commish only | Check in players, auto-balance teams, import RSVPs |
 | Scores | Everyone (commish edits) | Enter scores, mark skins/CTPs, live payout summary |
-| Players | Commish only | Manage the roster; edit contact info (email/phone) |
+| Players | Commish only | Manage the roster |
 | Stats | Everyone | 2026 Leaderboard + scoring average rankings |
 | History | Everyone | All completed rounds; deep-linkable per round |
 
 ### RSVP system
 
-- Commish creates a round → shares `rsvp.html?round=<uuid>` with the group
-- Players submit their name, email, and phone (contact info is saved and pre-filled on future RSVPs)
-- RSVP link automatically closes after midnight the night before the round
-- If Resend is configured, each RSVP receives an automated reminder email the day before
+- Commish creates a round → Sheila posts it to the league GroupMe with the `rsvp.html?round=<uuid>` link
+- Players reply "in" / "out" in the chat (or "in as <roster name>" the first time if their GroupMe name doesn't match), or pick their name on the RSVP page
+- RSVPs close after midnight the night before the round
+- Sheila posts a reminder with who's in the day before
 - Commish sees all RSVPs in the Teams tab and can import them all as checked-in with one click
 
 ### Auto-save

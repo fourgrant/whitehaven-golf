@@ -5,7 +5,7 @@
 
 let db;
 let currentRound = null;
-let playersMap   = {}; // id -> player object (includes email/phone)
+let playersMap   = {}; // id -> player object
 
 function initRsvpPage() {
   try {
@@ -59,10 +59,9 @@ async function loadRoundAndPlayers(roundId) {
   const { count } = await db.from('rsvps').select('id', { count: 'exact', head: true }).eq('round_id', roundId);
   document.getElementById('rsvp-count-display').textContent = `${count ?? 0} RSVP${count !== 1 ? 's' : ''} so far`;
 
-  // Load players (include email + phone for smart pre-fill)
   const { data: players } = await db
     .from('players')
-    .select('id, name, email, phone')
+    .select('id, name')
     .eq('active', true)
     .order('name');
 
@@ -84,33 +83,9 @@ async function loadRoundAndPlayers(roundId) {
 }
 
 function handlePlayerSelectChange() {
-  const val    = document.getElementById('rsvp-player-select').value;
-  const player = playersMap[val];
-
-  // New name field
+  const val = document.getElementById('rsvp-player-select').value;
   document.getElementById('new-name-group').style.display = val === '__new__' ? '' : 'none';
   if (val !== '__new__') document.getElementById('rsvp-new-name').value = '';
-
-  const emailGroup = document.getElementById('email-group');
-  const phoneGroup = document.getElementById('phone-group');
-  const onFileNote = document.getElementById('contact-on-file');
-
-  if (player && player.email && player.phone) {
-    // Contact already on file — hide fields, show note
-    emailGroup.style.display = 'none';
-    phoneGroup.style.display = 'none';
-    onFileNote.style.display = '';
-    onFileNote.textContent   = `📋 Using ${player.email} · ${player.phone}`;
-  } else {
-    // Need to collect contact info
-    emailGroup.style.display = '';
-    phoneGroup.style.display = '';
-    onFileNote.style.display = 'none';
-    // Pre-fill whatever we do have
-    if (player?.email) document.getElementById('rsvp-email').value = player.email;
-    if (player?.phone) document.getElementById('rsvp-phone').value = player.phone;
-  }
-
   clearError();
 }
 
@@ -120,18 +95,10 @@ async function submitRsvp() {
   const playerSelect = document.getElementById('rsvp-player-select').value;
   const newName      = document.getElementById('rsvp-new-name').value.trim();
   const player       = playersMap[playerSelect];
-  const hasContact   = player?.email && player?.phone;
-
-  const emailEl = document.getElementById('rsvp-email');
-  const phoneEl = document.getElementById('rsvp-phone');
-  const email   = hasContact ? player.email : emailEl.value.trim();
-  const phone   = hasContact ? player.phone : phoneEl.value.trim();
 
   // Validation
-  if (!playerSelect)                                  { showError('Please select your name.'); return; }
-  if (playerSelect === '__new__' && !newName)          { showError('Please enter your full name.'); return; }
-  if (!hasContact && (!email || !email.includes('@'))) { showError('Please enter a valid email address.'); return; }
-  if (!hasContact && !phone)                           { showError('Please enter your phone number.'); return; }
+  if (!playerSelect)                         { showError('Please select your name.'); return; }
+  if (playerSelect === '__new__' && !newName) { showError('Please enter your full name.'); return; }
 
   const btn = document.querySelector('button[onclick="submitRsvp()"]');
   btn.disabled = true;
@@ -140,13 +107,20 @@ async function submitRsvp() {
   let playerId    = playerSelect === '__new__' ? null : playerSelect;
   let displayName = player ? player.name : newName;
 
-  // Upsert new player if needed
+  // Add a new player if needed. A name that's already on the roster (even an
+  // inactive player not in the dropdown) uses that player instead of resetting
+  // their average and round count.
   if (playerSelect === '__new__' && newName) {
-    const { data: newPlayer, error: playerError } = await db
+    let { data: newPlayer, error: playerError } = await db
       .from('players')
-      .upsert({ name: newName, avg_score: 40, rounds_played: 0, email, phone }, { onConflict: 'name' })
-      .select('id')
+      .insert({ name: newName, avg_score: 40, rounds_played: 0 })
+      .select('id, name')
       .single();
+
+    if (playerError?.code === '23505') {
+      ({ data: newPlayer, error: playerError } = await db
+        .from('players').select('id, name').eq('name', newName).single());
+    }
 
     if (playerError) {
       showError('Error creating player: ' + playerError.message);
@@ -155,10 +129,7 @@ async function submitRsvp() {
       return;
     }
     playerId    = newPlayer.id;
-    displayName = newName;
-  } else if (playerId && !hasContact) {
-    // Save contact info back to this player for next time
-    await db.from('players').update({ email, phone }).eq('id', playerId);
+    displayName = newPlayer.name;
   }
 
   // Insert RSVP
@@ -166,8 +137,6 @@ async function submitRsvp() {
     round_id:  currentRound.id,
     player_id: playerId,
     name:      displayName,
-    email,
-    phone,
   });
 
   if (rsvpError) {
@@ -175,7 +144,7 @@ async function submitRsvp() {
       hide('rsvp-main');
       show('rsvp-success');
       document.getElementById('success-title').textContent = 'Already RSVPd!';
-      document.getElementById('success-detail').textContent = `${email} is already on the list for this round.`;
+      document.getElementById('success-detail').textContent = `${displayName} is already on the list for this round.`;
     } else {
       showError('Error saving RSVP: ' + rsvpError.message);
       btn.disabled = false;

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS players (
   active        boolean NOT NULL DEFAULT true,
   email         text,
   phone         text,
+  groupme_user_id text UNIQUE,          -- set the first time Sheila matches a GroupMe sender to this player
   base_avg      numeric,               -- DEPRECATED: historical-baseline blend removed; averages come from finalized app rounds only
   base_rounds   integer NOT NULL DEFAULT 0, -- DEPRECATED: see base_avg
   created_at    timestamptz DEFAULT now()
@@ -156,13 +157,22 @@ CREATE TABLE IF NOT EXISTS rsvps (
   round_id   uuid NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
   player_id  uuid REFERENCES players(id) ON DELETE SET NULL,
   name       text NOT NULL,
-  email      text NOT NULL,
-  phone      text NOT NULL,
+  email      text,                     -- legacy: no longer collected (RSVPs come from the web page or GroupMe)
+  phone      text,                     -- legacy
   created_at timestamptz DEFAULT now(),
-  UNIQUE(round_id, email)
+  UNIQUE(round_id, player_id)
 );
 
 ALTER TABLE rsvps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read"  ON rsvps FOR SELECT USING (true);
 CREATE POLICY "Public write" ON rsvps FOR ALL    USING (true);
 CREATE INDEX IF NOT EXISTS idx_rsvps_round_id ON rsvps(round_id);
+
+-- ============================================================
+-- MIGRATION (2026-10): GroupMe RSVPs — run once on existing databases
+-- ============================================================
+-- ALTER TABLE rsvps ALTER COLUMN email DROP NOT NULL;
+-- ALTER TABLE rsvps ALTER COLUMN phone DROP NOT NULL;
+-- ALTER TABLE rsvps DROP CONSTRAINT IF EXISTS rsvps_round_id_email_key;
+-- ALTER TABLE rsvps ADD CONSTRAINT rsvps_round_id_player_id_key UNIQUE (round_id, player_id);
+-- ALTER TABLE players ADD COLUMN IF NOT EXISTS groupme_user_id text UNIQUE;

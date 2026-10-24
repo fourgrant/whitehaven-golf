@@ -537,7 +537,8 @@ async function saveRound() {
   }
 
   let result;
-  if (state.currentRound && state.currentRound.status !== 'complete') {
+  const isNew = !(state.currentRound && state.currentRound.status !== 'complete');
+  if (!isNew) {
     result = await db.from('rounds').update(roundData).eq('id', state.currentRound.id).select().single();
   } else {
     result = await db.from('rounds').insert(roundData).select().single();
@@ -550,6 +551,10 @@ async function saveRound() {
   localStorage.setItem('whg_round_id', result.data.id);
   showRsvpLink(result.data.id);
   toast('Round saved! Assign players to teams.');
+  // A new future round announces itself in the GroupMe chat.
+  if (isNew && roundData.date > new Date().toISOString().split('T')[0]) {
+    postToGroupMe('rsvp_open', result.data.id, 'RSVPs posted to GroupMe');
+  }
   showPage('teams');
 }
 
@@ -792,7 +797,10 @@ function renderTeamPreview() {
   ).join('\n\n');
 
   container.innerHTML =
+    `<div class="teams-preview-actions">` +
     `<button class="btn-copy-teams" onclick="copyTeamsToClipboard()" title="Copy all teams">Copy Teams</button>` +
+    `<button class="btn-copy-teams" onclick="confirmPostToGroupMe('teams', state.currentRound?.id, 'Post the teams to GroupMe?', 'Teams posted to GroupMe')" title="Post teams to the GroupMe chat">Post Teams</button>` +
+    `</div>` +
     `<div id="teams-preview-cards">` +
     teamEntries.map(([t, players]) => {
       const avgSum = players.reduce((s, p) => s + (parseFloat(p.avg_score) || 40), 0);
@@ -3001,6 +3009,8 @@ async function renderHistory() {
           <div style="display:flex;align-items:center;gap:8px;">
             <button title="Copy link to this round" onclick="event.stopPropagation();shareRound('${r.id}')"
               style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer;color:var(--text-muted);">🔗</button>
+            ${state.isCommish ? `<button title="Post results to GroupMe" class="commish-only" onclick="event.stopPropagation();confirmPostToGroupMe('results', '${r.id}', 'Post these results to GroupMe?', 'Results posted to GroupMe')"
+              style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer;color:var(--text-muted);">📣</button>` : ''}
             ${state.isCommish ? `<button class="btn btn-danger btn-sm commish-only" onclick="event.stopPropagation();deleteRound('${r.id}')" style="font-size:11px;padding:3px 8px;">Delete</button>` : ''}
             <span class="history-expand">▼</span>
           </div>
@@ -3326,7 +3336,7 @@ async function renderRsvpSummary() {
 
   const { data: rsvps, error } = await db
     .from('rsvps')
-    .select('name, email, phone, created_at')
+    .select('name, created_at')
     .eq('round_id', state.currentRound.id)
     .order('created_at');
 
@@ -3345,16 +3355,14 @@ async function renderRsvpSummary() {
       <thead>
         <tr>
           <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
+          <th>RSVP'd</th>
         </tr>
       </thead>
       <tbody>
         ${rsvps.map(r => `
           <tr>
             <td style="font-weight:500">${r.name}</td>
-            <td style="font-family:'DM Mono',monospace;font-size:12px;">${r.email}</td>
-            <td style="font-family:'DM Mono',monospace;font-size:12px;">${r.phone}</td>
+            <td style="font-family:'DM Mono',monospace;font-size:12px;">${new Date(r.created_at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -3405,6 +3413,27 @@ async function importRsvps() {
   renderTeamPreview();
   updateCalc();
   toast(`Imported ${imported} RSVP${imported !== 1 ? 's' : ''} as checked in.`);
+}
+
+// ===== GROUPME =====
+// Sheila posts to the league chat through the groupme-post edge function.
+// We only name the message kind; the function builds the text from the DB.
+async function postToGroupMe(kind, roundId, okMsg) {
+  if (!db || !roundId) { toast('No round to post.'); return false; }
+  const { data, error } = await db.functions.invoke('groupme-post', { body: { kind, round_id: roundId } });
+  if (error) {
+    let msg = error.message;
+    try { msg = (await error.context.json()).error || msg; } catch {}
+    toast('GroupMe: ' + msg);
+    return false;
+  }
+  toast(okMsg || 'Posted to GroupMe');
+  return !!data?.ok;
+}
+
+function confirmPostToGroupMe(kind, roundId, question, okMsg) {
+  if (!confirm(question)) return;
+  postToGroupMe(kind, roundId, okMsg);
 }
 
 // ===== UTIL =====
