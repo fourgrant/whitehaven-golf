@@ -107,13 +107,20 @@ async function submitRsvp() {
   let playerId    = playerSelect === '__new__' ? null : playerSelect;
   let displayName = player ? player.name : newName;
 
-  // Upsert new player if needed
+  // Add a new player if needed. A name that's already on the roster (even an
+  // inactive player not in the dropdown) uses that player instead of resetting
+  // their average and round count.
   if (playerSelect === '__new__' && newName) {
-    const { data: newPlayer, error: playerError } = await db
+    let { data: newPlayer, error: playerError } = await db
       .from('players')
-      .upsert({ name: newName, avg_score: 40, rounds_played: 0 }, { onConflict: 'name' })
-      .select('id')
+      .insert({ name: newName, avg_score: 40, rounds_played: 0 })
+      .select('id, name')
       .single();
+
+    if (playerError?.code === '23505') {
+      ({ data: newPlayer, error: playerError } = await db
+        .from('players').select('id, name').eq('name', newName).single());
+    }
 
     if (playerError) {
       showError('Error creating player: ' + playerError.message);
@@ -122,7 +129,7 @@ async function submitRsvp() {
       return;
     }
     playerId    = newPlayer.id;
-    displayName = newName;
+    displayName = newPlayer.name;
   }
 
   // Insert RSVP
