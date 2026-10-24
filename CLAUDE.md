@@ -39,7 +39,10 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 - `config.js` — **gitignored**; injected by GitHub Actions from secrets; copy `config.example.js` for local dev
 - `supabase/schema.sql` — tables, RLS policies, seed data
 - `.github/workflows/deploy.yml` — injects config.js, deploys to `gh-pages` branch
-- `.github/workflows/reminders.yml` — daily cron sends reminder emails via `scripts/send-reminders.js`
+- `.github/workflows/reminders.yml` — daily cron; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round
+- `supabase/functions/groupme-post/` — Sheila posts to GroupMe (rsvp_open, rsvp_list, reminder, teams, results); text is built server-side from the DB. Secret: `GROUPME_BOT_ID`
+- `supabase/functions/groupme-callback/` — bot callback; parses "in" / "out" / "in as <name>" / "who's in" and writes `rsvps`. Deployed `--no-verify-jwt`; checks `?secret=` against `GROUPME_CALLBACK_SECRET`
+- `supabase/functions/_shared/groupme.ts` — shared message builders and GroupMe post helper
 
 ## Design System
 
@@ -79,11 +82,11 @@ Team scores are manually entered (not auto-calculated from individual scores).
 
 | Table | Key columns |
 |---|---|
-| `players` | name, avg_score, rounds_played, active, email, phone, base_avg, base_rounds |
+| `players` | name, avg_score, rounds_played, active, email, phone, groupme_user_id, base_avg, base_rounds |
 | `rounds` | date, course, buyin_per_player, cth_per_player, status, team_scores (jsonb), round_state (jsonb) |
 | `round_players` | round_id, player_id, team, score, holes_won, cth_winner, cth_count, paid_in, paid_out |
 | `round_results` | round_id, player_id, team_winnings, skin_winnings, cth_winnings, total_winnings |
-| `rsvps` | round_id, player_id, name, email, phone |
+| `rsvps` | round_id, player_id (unique per round), name; email/phone legacy, no longer collected |
 
 RLS enabled on all tables with public read + write (commish auth is client-side — appropriate for a private friend-group app).
 

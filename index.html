@@ -193,10 +193,11 @@
     <!-- RSVP link card (revealed after round is saved) -->
     <div class="card" id="rsvp-link-section" style="display:none;">
       <h2>RSVP Link</h2>
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Share this link so players can RSVP before the round. RSVPs close at midnight the night before.</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Sheila posts this to GroupMe when you create a round. Players can reply "in" in the chat or use the link. RSVPs close at midnight the night before.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <code id="rsvp-link-text" style="flex:1;font-family:'DM Mono',monospace;font-size:12px;background:var(--warm-white);border:1px solid var(--border);border-radius:6px;padding:8px 12px;word-break:break-all;color:var(--text);"></code>
         <button class="btn btn-outline btn-sm" onclick="copyRsvpLink()" style="flex-shrink:0;">Copy</button>
+        <button class="btn btn-outline btn-sm" onclick="confirmPostToGroupMe('rsvp_open', state.currentRound?.id, 'Post the RSVP announcement to GroupMe again?', 'RSVPs posted to GroupMe')" style="flex-shrink:0;">📣 Post to GroupMe</button>
       </div>
     </div>
   </div>
@@ -225,6 +226,7 @@
         <div id="rsvp-list-content" style="font-size:13px;color:var(--text-muted);">Loading…</div>
         <div class="btn-row" style="margin-top:12px;">
           <button class="btn btn-outline btn-sm" onclick="copyRsvpList()">📋 Copy List</button>
+          <button class="btn btn-outline btn-sm" onclick="confirmPostToGroupMe('rsvp_list', state.currentRound?.id, 'Post who\'s in to GroupMe?', 'RSVP list posted to GroupMe')">📣 Post List</button>
           <button class="btn btn-outline btn-sm" onclick="importRsvps()">⬇ Import All as Checked-In</button>
         </div>
       </div>
@@ -405,7 +407,7 @@
     <div class="card">
       <h2>Overview</h2>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;">
-        The Whitehaven Sunday League runs a 9-hole shambles format. Each week follows five steps: send the RSVP link, set up the round, build teams, enter scores, then finalize. This app — <strong>Sheila</strong> (She Handles Every Invite, Leaderboard &amp; Average) — auto-saves scores and round state to the cloud as you work, so it's safe to close and reopen at any point. If you have the paper cards, <strong>📷 Upload Scorecards</strong> can do Steps 2 and 3 from photos.
+        The Whitehaven Sunday League runs a 9-hole shambles format. Each week follows five steps: open RSVPs in GroupMe, set up the round, build teams, enter scores, then finalize. This app — <strong>Sheila</strong> (She Handles Every Invite, Leaderboard &amp; Average) — auto-saves scores and round state to the cloud as you work, so it's safe to close and reopen at any point. If you have the paper cards, <strong>📷 Upload Scorecards</strong> can do Steps 2 and 3 from photos.
       </p>
       <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <span class="tag">0 RSVP</span>
@@ -422,12 +424,14 @@
 
     <!-- Step 0: RSVP -->
     <div class="card">
-      <h2>📋 Step 0 — Send the RSVP Link</h2>
+      <h2>📋 Step 0 — Open RSVPs in GroupMe</h2>
       <div class="section-label" style="margin-top:0;">Before round day</div>
       <ol style="padding-left:20px;font-size:14px;line-height:2;">
-        <li>Go to the <strong>Round</strong> tab and save the round (date, course, buy-in).</li>
-        <li>A green <strong>RSVP Link</strong> card appears — click <strong>Copy Link</strong> and paste it into the group chat.</li>
-        <li>Players open the link, pick their name from the dropdown, and submit. The link automatically closes after midnight the night before the round.</li>
+        <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link.</li>
+        <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). Sheila confirms each one with the running count. Anyone can reply <strong>who's in</strong> to get the list.</li>
+        <li>They can still use the link instead: pick their name and submit. No email or phone needed.</li>
+        <li>RSVPs close at midnight the night before. Around 1 PM the day before, Sheila posts a reminder with everyone who's in.</li>
+        <li>Need to re-post the announcement? Use <strong>📣 Post to GroupMe</strong> on the RSVP Link card.</li>
       </ol>
       <div class="section-label">On round day</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
@@ -435,10 +439,10 @@
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
         <li><strong>Import RSVPs</strong> — checks in every RSVP'd player with one click.</li>
-        <li><strong>Copy List</strong> — copies a numbered list of names and contacts formatted for a group text (e.g. to confirm headcount before you arrive).</li>
+        <li><strong>Copy List</strong> — copies a numbered list of names, or <strong>📣 Post List</strong> to have Sheila post it to GroupMe.</li>
       </ul>
       <div style="padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
-        <strong style="color:var(--text);">First-time players</strong> — if a player doesn't have an email/phone on file, the RSVP form asks for it and saves it automatically. Next time they RSVP, those fields are skipped.
+        <strong style="color:var(--text);">How Sheila knows who's who</strong> — the first time someone replies "in", Sheila matches their GroupMe name to the roster (e.g. "Randy Kirkland" → Randy K.) and remembers them after that. If the name doesn't match, Sheila asks them to reply <strong>in as &lt;roster name&gt;</strong>, e.g. "in as Randy K." That also fixes a wrong match. Players who aren't on the roster yet add themselves with the RSVP link.
       </div>
     </div>
 
@@ -502,7 +506,7 @@
       </ul>
       <div class="section-label">Team stories</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:8px;">
-        After Auto-Balance or Shuffle, each team card carries a two-line <strong>bookmaker's card</strong>: who heads the card (the team's lowest average) and any coupled entry from a Play-Together pairing, one note on form (a first-time guest, a player with 3 or fewer starts, or the veterans carrying the most rounds), and a <em>morning line</em>. The line is set from the team's average against the day's field: 1-2 or 4-5 means the team is favored, even money means it's dead level, 5-2 or 4-1 means it's the outsider. The wording rotates week to week. Cards are for the commish's eyes only: <em>Copy Teams</em> puts just the team letters and names on the clipboard, so the group text stays short.
+        After Auto-Balance or Shuffle, each team card carries a two-line <strong>bookmaker's card</strong>: who heads the card (the team's lowest average) and any coupled entry from a Play-Together pairing, one note on form (a first-time guest, a player with 3 or fewer starts, or the veterans carrying the most rounds), and a <em>morning line</em>. The line is set from the team's average against the day's field: 1-2 or 4-5 means the team is favored, even money means it's dead level, 5-2 or 4-1 means it's the outsider. The wording rotates week to week. Cards are for the commish's eyes only: <em>Copy Teams</em> puts just the team letters and names on the clipboard, and <em>Post Teams</em> has Sheila post the same list to GroupMe.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
         Cards always describe who is on the team <em>right now</em>. If you change a team letter by hand afterward, uncheck someone, or apply an uploaded scorecard, the affected cards are rewritten for the new line-up and get a "Stewards' adjustment after the draw" note rather than pretending the balancer chose it. Teams built entirely by hand have no card. Cards are saved with the round and show up on the Scores tab and in History.
@@ -597,7 +601,7 @@
 
       <div class="section-label">Share with the group</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        Click <strong>Copy Payout Summary</strong> to copy a plain-text summary to your clipboard — ready to paste into a group chat.
+        Click <strong>Copy Payout Summary</strong> to copy a plain-text summary to your clipboard. After you finalize, open the <strong>History</strong> tab and tap <strong>📣</strong> on the round to have Sheila post the results to GroupMe: the winning team, skins, closest-to-the-hole winners and a link to the full card.
       </p>
 
       <div class="section-label">Finalize the round</div>
@@ -727,6 +731,19 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.8</span>
+          <span class="release-date">October 24, 2026</span>
+        </div>
+        <h3>Sheila Joins the GroupMe</h3>
+        <ul class="release-list">
+          <li><strong>RSVP by replying "in".</strong> Saving a new round makes Sheila post the announcement and RSVP link to the league GroupMe. Players reply <em>in</em> or <em>out</em>, and Sheila confirms with the running count. <em>who's in</em> gets the list. A name that doesn't match the roster can be claimed with <em>in as Randy K.</em></li>
+          <li><strong>Day-before reminder in the chat.</strong> The reminder email is retired. Instead, Sheila posts one reminder to the group the afternoon before a round, listing everyone who's in.</li>
+          <li><strong>Post buttons.</strong> 📣 Post to GroupMe on the RSVP Link card, 📣 Post List on the RSVPs card, Post Teams next to Copy Teams, and 📣 on each History round to post its results. Each asks before posting.</li>
+          <li><strong>No more email and phone on the RSVP form.</strong> Pick your name and go.</li>
+        </ul>
+      </div>
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.7</span>

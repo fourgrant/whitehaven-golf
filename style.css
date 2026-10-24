@@ -257,6 +257,14 @@ main {
 
 #teams-preview-cards { display: contents; }
 
+.teams-preview-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.teams-preview-actions .btn-copy-teams { display: inline-block; }
+
 .btn-copy-teams {
   display: block;
   grid-column: 1 / -1;
