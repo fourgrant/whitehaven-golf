@@ -118,7 +118,7 @@ async function handle(
   }
 
   if (rsvpsClosed(round)) {
-    await postToGroup(`RSVPs for ${fmtDate(round.date)} are closed — check with the commish.`);
+    await postToGroup(`RSVPs for ${fmtDate(round.date)} closed at 9 AM — check with the commish.`);
     return;
   }
 

@@ -40,9 +40,12 @@ async function loadRoundAndPlayers(roundId) {
     return;
   }
 
-  // Check cutoff: reject if round date is today or earlier
-  const today = new Date().toISOString().split('T')[0];
-  if (round.date <= today) {
+  // RSVPs close at 9 AM Central on round day (tee time), matching Sheila in GroupMe.
+  const nowCentral = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(new Date());
+  if (nowCentral >= `${round.date} 09:00:00`) {
     show('rsvp-closed');
     hide('rsvp-loading');
     return;
