@@ -3423,7 +3423,7 @@ async function importRsvps() {
 
   const { data: rsvps, error } = await db
     .from('rsvps')
-    .select('player_id')
+    .select('player_id, name')
     .eq('round_id', state.currentRound.id);
 
   if (error) { toast('Error loading RSVPs.'); return; }
@@ -3431,6 +3431,8 @@ async function importRsvps() {
 
   let imported = 0;
   let anyInactive = false;
+  // Guests RSVP'd in GroupMe ("+ SM") have no player yet — the commish adds them.
+  const guests = rsvps.filter(r => !r.player_id).map(r => r.name);
   rsvps.forEach(r => {
     if (r.player_id && state.players.find(p => p.id === r.player_id)) {
       state.checkedIn.add(r.player_id);
@@ -3446,6 +3448,9 @@ async function importRsvps() {
   renderTeamPreview();
   updateCalc();
   toast(`Imported ${imported} RSVP${imported !== 1 ? 's' : ''} as checked in.`);
+  if (guests.length) {
+    alert(`Add ${guests.length === 1 ? 'this guest' : 'these guests'} with + Add Guest (or Paste List):\n\n${guests.join('\n')}`);
+  }
 }
 
 // ===== GROUPME =====
