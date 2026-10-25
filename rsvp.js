@@ -59,8 +59,11 @@ async function loadRoundAndPlayers(roundId) {
   document.getElementById('rsvp-date-buyin').textContent = `${dateStr} · $${round.buyin_per_player} buy-in`;
 
   // Load RSVP count
-  const { count } = await db.from('rsvps').select('id', { count: 'exact', head: true }).eq('round_id', roundId);
-  document.getElementById('rsvp-count-display').textContent = `${count ?? 0} RSVP${count !== 1 ? 's' : ''} so far`;
+  const { count } = await db.from('rsvps').select('id', { count: 'exact', head: true }).eq('round_id', roundId).eq('waitlisted', false);
+  const cap = round.max_players;
+  document.getElementById('rsvp-count-display').textContent = cap && count >= cap
+    ? `Full (${count}/${cap}) — new RSVPs join the waitlist`
+    : `${count ?? 0}${cap ? `/${cap}` : ''} in so far`;
 
   const { data: players } = await db
     .from('players')
@@ -136,11 +139,11 @@ async function submitRsvp() {
   }
 
   // Insert RSVP
-  const { error: rsvpError } = await db.from('rsvps').insert({
+  const { data: saved, error: rsvpError } = await db.from('rsvps').insert({
     round_id:  currentRound.id,
     player_id: playerId,
     name:      displayName,
-  });
+  }).select('waitlisted').single();
 
   if (rsvpError) {
     if (rsvpError.code === '23505') {
@@ -158,9 +161,14 @@ async function submitRsvp() {
 
   hide('rsvp-main');
   show('rsvp-success');
-  document.getElementById('success-title').textContent = `You're in, ${displayName}!`;
   const dateStr = new Date(currentRound.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  document.getElementById('success-detail').textContent = `See you at ${currentRound.course} on ${dateStr}.`;
+  if (saved?.waitlisted) {
+    document.getElementById('success-title').textContent = `You're on the waitlist, ${displayName}.`;
+    document.getElementById('success-detail').textContent = `We're full for ${dateStr}. If a spot opens, Sheila will tag you in the GroupMe.`;
+  } else {
+    document.getElementById('success-title').textContent = `You're in, ${displayName}!`;
+    document.getElementById('success-detail').textContent = `See you at ${currentRound.course} on ${dateStr}.`;
+  }
 }
 
 // ===== UTIL =====
