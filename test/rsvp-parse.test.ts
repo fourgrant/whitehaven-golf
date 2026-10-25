@@ -1,9 +1,10 @@
 // Run: npx tsx test/rsvp-parse.test.ts
-// Real messages from the league GroupMe (week of Oct 21, 2026) and what Sheila should do with each.
+// Real messages from the league GroupMe (weeks of Oct 14 and Oct 21, 2026) and what Sheila should do with each.
 import { parseRsvp, findPlayer, isSender } from "../supabase/functions/_shared/rsvp-parse.ts";
 
 const IN = (party: string[] = [], guests: string[] = []) => ({ kind: "in", party, guests });
-const OUT = { kind: "out" };
+const OUT = { kind: "out", party: [] };
+const OUT_FOR = (...party: string[]) => ({ kind: "out", party });
 const cases: [string, unknown][] = [
   // the week, in order
   ["I'm likely out this Sunday, but I want to let y'all know my band is playing this Friday at B-Side. We go on at 9.", null],
@@ -21,7 +22,7 @@ const cases: [string, unknown][] = [
   ["In Sunday.", IN()],
   ["Dave and Spencer in Sunday", IN(["dave", "spencer"])],
   ["In for Sunday", IN()],
-  ["+ SM", { kind: "guest", guests: ["sm"] }],
+  ["+ SM", null], // probably a typo for MM
   ["In Sun, maybe MM", IN()],
   ["I'm out. Working", OUT],
   ["1. Dick\n2. Billy\n3. Ricky\n4. Chip\n5. T$\nNext entry locks the game", null],
@@ -35,10 +36,37 @@ const cases: [string, unknown][] = [
   ["Venmo sent", null],
   ["Team 1\nT$ 37.3\nBenton 39\nSpencer 39.1", null],
   ["Tee time order was randomly drawn. If MM pushes players late we will adjust.", null],
+  // week of Oct 14
+  ["My game Sunday. My hope is that everyone from league shows Will, and Clark , some appreciation this Saturday at October fest at Crosstown. Who is in ?", null],
+  ["I'll be at Crosstoberfest", null],
+  ["In + Jeremy Wickham", IN([], ["jeremy wickham"])],
+  ["Out of town this week.", OUT], ["Out of town as well", OUT],
+  ["We can sweet talk Sheila into making teams", null],
+  ["Out of town this week and next.", OUT],
+  ["I'm in if I can be in first or second group teeing off. Benton, is that cool?", IN()],
+  ["WW, you will be in first group", null],
+  ["Out this week. Keep them in the fair.", OUT],
+  ["I am in and will cya at CT8 on Saturday! ❤️", IN()],
+  ["I show 11, who am I missing", null],
+  ["Nigel Tufnel", null],
+  ["Andy Mullis is also in, will make introduction Sunday morning", IN(["andy mullis"])],
+  ["A Roger Staubach 12 so far, plenty of room to join", null],
+  ["David and Spencer are in.", IN(["david", "spencer"])],
+  ["In.", IN()],
+  ["In Sunday. Also I have the CTP markers in my truck", IN()],
+  ["20 phelan is a perfect # , 22 flutie not as commish friendly", null],
+  ["My dad Bill Butler is in, he being a D - F player he's a C and 86 years young.", IN(["bill butler"])],
+  ["I show 19 with Ben and Bill Butler", null],
+  ["Ben Holloway and Rich Playford both gave me verbals. They're both IN", null],
+  ["Harry is in too.", IN(["harry"])],
+  ["22 with Harry, nice", null],
+  ["Ben Holloway now out for tomorrow", OUT_FOR("ben holloway")],
+  ["I had Andy Mullins CTP on 2 , who had 5 ?", null],
+  ["Dave had birdie in our group on 5 fyi", null],
   // other things people type
   ["in!", IN()], ["Innnn", IN()], ["in 👍", IN()], ["count me in", IN()], ["IN like Flynn", IN()],
-  ["Yes, in", IN()], ["Sorry guys, I'm out", OUT], ["out of town", OUT], ["out", OUT],
-  ["in + Spencer", IN([], ["spencer"])], ["In with my brother-in-law", null], ["me and joe b in", IN(["me", "joe b"])],
+  ["Yes, in", IN()], ["Sorry guys, I'm out", OUT], ["Spencer and I are in", IN(["spencer", "i"])], ["Harry's in", IN(["harry"])], ["in + my dad", IN([], ["my dad"])], ["+ Jeremy", { kind: "guest", guests: ["jeremy"] }], ["out of town", OUT], ["out", OUT],
+  ["in + Spencer", IN([], ["spencer"])], ["In with my brother-in-law", IN([], ["my brotherinlaw"])], ["me and joe b in", IN(["me", "joe b"])],
   ["in as Randy K.", { kind: "in_as", name: "randy k" }], ["in as new", { kind: "in_as", name: "new" }],
   ["who's in", { kind: "who" }], ["Whos in?", { kind: "who" }],
   // must stay quiet
@@ -66,7 +94,8 @@ const senders: [string, string | null][] = [
   ["Iain Parks 2", "Iain"], ["John Markham", "John Markham"], ["Burton Milnor", "Burton"], ["William Wunderlich", "William W."],
   ["Larry Walker", "Larry W."], ["David Turner", "David T."], ["Nathan O'Kelly", "Nathan O."], ["Zac Ives", "Zac"],
   ["Andy King 2", "Andy"], ["Lee Downing", "Lee D."], ["Jon Van Hoozer", "Jon Van Hoozer"], ["Joe Boone", "Joe Boone"],
-  ["Spencer", "Spencer T"], ["sm", null], ["joe b", "Joe Boone"],
+  ["Spencer", "Spencer T"], ["joe b", "Joe Boone"], ["ben holloway", "Ben H."], ["harry", "Harry O"],
+  ["rich playford", "Rich P"], ["bill butler", null], ["jeremy wickham", null], ["Colin Butler", "Colin B."],
 ];
 for (const [s, want] of senders) {
   const got = findPlayer(roster, s)?.name ?? null;

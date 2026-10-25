@@ -169,6 +169,13 @@
             $2 → CTH pool (holes 2 &amp; 5) · $10 → 75% team win / 25% skins
           </div>
         </div>
+        <div class="form-group">
+          <label>Max players</label>
+          <input type="number" id="round-max" value="24" min="1" placeholder="No cap">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;">
+            RSVPs after this go on a waitlist. Leave blank for no cap.
+          </div>
+        </div>
       </div>
       <div class="payout-grid" id="round-summary" style="margin-top:4px;">
         <div class="payout-stat">
@@ -428,9 +435,10 @@
       <div class="section-label" style="margin-top:0;">Before round day</div>
       <ol style="padding-left:20px;font-size:14px;line-height:2;">
         <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link.</li>
-        <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). Sheila confirms each one with the running count. Anyone can reply <strong>who's in</strong> to get the list.</li>
+        <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). <strong>Sheila stays quiet when things go right</strong>: she doesn't reply to every "in". She only speaks up for an unknown name, RSVPs closed, the game filling up, the waitlist, or a spot opening. Every evening around 7 PM she posts the list, but only if it changed that day. Anyone can reply <strong>who's in</strong> to get the list.</li>
+        <li><strong>Max players</strong> (Round tab, default 24) caps the game. Once it's full, Sheila posts "🔒 we're full", and later "in" replies go on a <strong>waitlist</strong>. When someone says "out", the next person on the waitlist moves up automatically and Sheila tags them in GroupMe. Raising the cap moves people up too.</li>
         <li>Sheila reads replies the way people actually type them: <em>IN + MM</em>, <em>In for Sunday</em>, <em>I'm in.</em>, <em>In, if I'm welcomed back</em>, <em>We really should play, in</em>, and <em>I'm out. Working</em> all count. MM (Madman) is ignored. Questions like <em>Who wants in?</em> and ordinary chatter are left alone.</li>
-        <li><strong>Bringing someone?</strong> <em>In + SM</em>, <em>+ SM</em> on its own, or <em>Dave and Spencer in</em>. If the name is on the roster, that player gets RSVP'd. Otherwise it's saved as a guest, e.g. "SM (Bill S.'s guest)". When you Import RSVPs, Sheila lists those guests so you can add them with + Add Guest.</li>
+        <li><strong>Bringing someone?</strong> <em>In + Jeremy Wickham</em>, <em>+ Jeremy</em> on its own, <em>In with my brother-in-law</em>, or <em>Dave and Spencer in</em>. <strong>RSVPing for someone else</strong> works too: <em>Harry is in too</em>, <em>My dad Bill Butler is in</em>, <em>Ben Holloway now out</em>. A roster name gets RSVP'd. Anyone else is saved as a guest, e.g. "Jeremy Wickham (Will Goodwin's guest)". When you Import RSVPs, Sheila lists those guests so you can add them with + Add Guest. One- and two-letter names like "+ SM" are ignored, because they're almost always a typo for MM.</li>
         <li>They can still use the link instead: pick their name and submit. No email or phone needed.</li>
         <li>RSVPs close at <strong>9 AM on round day</strong>, so anyone who drops out that morning can still reply "out". Around 1 PM the day before, Sheila posts a reminder with everyone who's in.</li>
         <li>Need to re-post the announcement? Use <strong>📣 Post to GroupMe</strong> on the RSVP Link card.</li>
@@ -440,7 +448,8 @@
         Go to the <strong>Teams</strong> tab. An <strong>RSVPs</strong> card at the top shows everyone who committed. You have two options:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
-        <li><strong>Import RSVPs</strong> — checks in every RSVP'd player with one click.</li>
+        <li><strong>Edit the list</strong> — <strong>✕</strong> removes an RSVP (if that opens a spot, the next waitlisted player moves up and gets tagged). <strong>↑ Move in</strong> takes someone off the waitlist, even over the cap. <strong>Add an RSVP…</strong> adds any roster player or a guest. Adds respect the cap, so a full game puts them on the waitlist.</li>
+        <li><strong>Import RSVPs</strong> — checks in every RSVP'd player with one click. The waitlist isn't imported.</li>
         <li><strong>Copy List</strong> — copies a numbered list of names, or <strong>📣 Post List</strong> to have Sheila post it to GroupMe.</li>
       </ul>
       <div style="padding:12px 14px;background:var(--warm-white);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--text-muted);line-height:1.6;">
@@ -733,6 +742,20 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.10</span>
+          <span class="release-date">October 25, 2026</span>
+        </div>
+        <h3>Full Game, Waitlist &amp; a Quieter Sheila</h3>
+        <ul class="release-list">
+          <li><strong>Player cap and waitlist.</strong> New <em>Max players</em> field on the Round tab (default 24). Once the game is full, Sheila says so, and new RSVPs from GroupMe, the link or the app join a waitlist. When someone drops, the next person moves up and Sheila tags them.</li>
+          <li><strong>Edit RSVPs in the app.</strong> The RSVPs card on the Teams tab can remove an RSVP, move someone in from the waitlist, and add any player or guest.</li>
+          <li><strong>Quieter chat.</strong> No reply to every "in" or "out". Sheila posts only when someone needs to act, plus one list around 7 PM, and only if it changed that day.</li>
+          <li><strong>RSVPing for others.</strong> <em>Harry is in too</em>, <em>Andy Mullis is also in</em>, <em>My dad Bill Butler is in</em>, <em>Ben Holloway now out</em>, <em>In with my brother-in-law</em>, <em>I'm in if I can be in the first group</em>, and <em>I am in and will cya Saturday</em> now work. "+ SM"-style initials are ignored as MM typos.</li>
+        </ul>
+      </div>
+
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.9</span>

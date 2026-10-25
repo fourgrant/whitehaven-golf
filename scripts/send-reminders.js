@@ -2,8 +2,10 @@
 /* ============================================================
    Sheila (Whitehaven Sunday League) — Round Reminder Script
    The day before a round, Sheila posts one reminder to the
-   league GroupMe with who's in so far. The message itself is
-   built by the groupme-post edge function.
+   league GroupMe with who's in so far. With MODE=evening, she
+   posts the RSVP list instead — only if it changed since the
+   last list. The messages are built by the groupme-post edge
+   function.
    Pure Node — no npm deps (uses built-in https).
    ============================================================ */
 
@@ -50,6 +52,16 @@ function supabase(method, path, body) {
 
 // ===== MAIN =====
 async function main() {
+  if (process.env.MODE === 'evening') {
+    const res = await supabase('POST', '/functions/v1/groupme-post', { kind: 'evening_list' });
+    if (res.status !== 200) {
+      console.error('✗ Evening list failed:', JSON.stringify(res.body));
+      process.exit(1);
+    }
+    console.log(res.body.skipped ? `Skipped: ${res.body.skipped}` : `✓ Posted list:\n${res.body.text}`);
+    return;
+  }
+
   // Tomorrow's date in YYYY-MM-DD
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);

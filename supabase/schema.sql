@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS rounds (
   lead_commish_id  uuid REFERENCES players(id),
   team_scores      jsonb DEFAULT '{}'::jsonb,  -- map of team letter -> score, e.g. {"A":107,"B":112}
   round_state      jsonb DEFAULT '{}'::jsonb,  -- draft state: {holeWinners, cthWinners, tiebreakerScores}
+  max_players      int DEFAULT 24,             -- RSVP cap; later RSVPs go on the waitlist. NULL = no cap
+  rsvp_list_sig    text,                       -- who was on the last list Sheila posted (evening list skips if unchanged)
   created_at       timestamptz DEFAULT now()
 );
 
@@ -159,9 +161,24 @@ CREATE TABLE IF NOT EXISTS rsvps (
   name       text NOT NULL,
   email      text,                     -- legacy: no longer collected (RSVPs come from the web page or GroupMe)
   phone      text,                     -- legacy
+  waitlisted boolean,                  -- set on insert by rsvps_waitlist when the round is full; pass false to force in
   created_at timestamptz DEFAULT now(),
   UNIQUE(round_id, player_id)
 );
+
+-- New RSVPs past the round's max_players go on the waitlist.
+CREATE OR REPLACE FUNCTION rsvps_set_waitlisted() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE cap int; n int;
+BEGIN
+  IF NEW.waitlisted IS NULL THEN
+    SELECT max_players INTO cap FROM rounds WHERE id = NEW.round_id;
+    SELECT count(*) INTO n FROM rsvps WHERE round_id = NEW.round_id AND NOT waitlisted;
+    NEW.waitlisted := cap IS NOT NULL AND n >= cap;
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS rsvps_waitlist ON rsvps;
+CREATE TRIGGER rsvps_waitlist BEFORE INSERT ON rsvps FOR EACH ROW EXECUTE FUNCTION rsvps_set_waitlisted();
 
 ALTER TABLE rsvps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read"  ON rsvps FOR SELECT USING (true);
@@ -176,3 +193,10 @@ CREATE INDEX IF NOT EXISTS idx_rsvps_round_id ON rsvps(round_id);
 -- ALTER TABLE rsvps DROP CONSTRAINT IF EXISTS rsvps_round_id_email_key;
 -- ALTER TABLE rsvps ADD CONSTRAINT rsvps_round_id_player_id_key UNIQUE (round_id, player_id);
 -- ALTER TABLE players ADD COLUMN IF NOT EXISTS groupme_user_id text UNIQUE;
+--
+-- MIGRATION (2026-10-25): RSVP cap + waitlist
+-- ALTER TABLE rounds ADD COLUMN IF NOT EXISTS max_players int DEFAULT 24;
+-- ALTER TABLE rounds ADD COLUMN IF NOT EXISTS rsvp_list_sig text;
+-- ALTER TABLE rsvps ADD COLUMN IF NOT EXISTS waitlisted boolean;
+-- UPDATE rsvps SET waitlisted = false WHERE waitlisted IS NULL;
+-- (then the rsvps_set_waitlisted function and rsvps_waitlist trigger above)

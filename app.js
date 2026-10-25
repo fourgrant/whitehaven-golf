@@ -488,6 +488,7 @@ function renderRoundPage() {
     document.getElementById('round-date').value     = r.date || today;
     document.getElementById('round-course').value   = r.course || 'Whitehaven';
     document.getElementById('round-buyin').value    = r.buyin_per_player ?? 12;
+    document.getElementById('round-max').value      = r.max_players ?? '';
     sel.value = r.lead_commish_id || '';
     document.getElementById('round-badge-text').textContent = `Editing: ${r.date} at ${r.course}`;
     document.getElementById('round-active-badge').style.display = 'block';
@@ -497,6 +498,7 @@ function renderRoundPage() {
     document.getElementById('round-date').value     = today;
     document.getElementById('round-course').value   = 'Whitehaven';
     document.getElementById('round-buyin').value    = 12;
+    document.getElementById('round-max').value      = 24;
     sel.value = '';
     document.getElementById('round-active-badge').style.display = 'none';
     document.getElementById('clear-round-btn').style.display = 'none';
@@ -524,6 +526,7 @@ async function saveRound() {
     cth_per_player:   2,
     status:           'setup',
     lead_commish_id:  document.getElementById('round-commish').value || null,
+    max_players:      parseInt(document.getElementById('round-max').value) || null,
   };
 
   if (!roundData.date) { toast('Please select a date.'); return; }
@@ -554,6 +557,9 @@ async function saveRound() {
   // A new future round announces itself in the GroupMe chat.
   if (isNew && roundData.date > new Date().toISOString().split('T')[0]) {
     postToGroupMe('rsvp_open', result.data.id, 'RSVPs posted to GroupMe');
+  } else if (!isNew) {
+    // A raised cap opens spots: move people up from the waitlist (Sheila tags them).
+    promoteWaitlist(result.data.id);
   }
   showPage('teams');
 }
@@ -3369,51 +3375,122 @@ async function renderRsvpSummary() {
 
   const { data: rsvps, error } = await db
     .from('rsvps')
-    .select('name, created_at')
+    .select('id, name, player_id, waitlisted, created_at')
     .eq('round_id', state.currentRound.id)
     .order('created_at');
 
   if (error) { content.textContent = 'Error loading RSVPs.'; card.style.display = ''; return; }
 
-  if (!rsvps || !rsvps.length) {
-    content.innerHTML = '<span style="color:var(--text-muted);">No RSVPs yet.</span>';
-    card.style.display = '';
-    return;
-  }
+  state._rsvps = rsvps || []; // cache for copyRsvpList()
+  const ins  = state._rsvps.filter(r => !r.waitlisted);
+  const wait = state._rsvps.filter(r => r.waitlisted);
+  const cap  = state.currentRound.max_players;
 
-  state._rsvps = rsvps; // cache for copyRsvpList()
+  const fmtTime = t => new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const row = (r, i, waitlisted) => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);width:28px;">${waitlisted ? 'W' : ''}${i + 1}</td>
+      <td style="font-weight:500">${escHtml(r.name)}${r.player_id ? '' : ' <span style="font-size:11px;color:var(--text-muted);">· guest, add at check-in</span>'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${fmtTime(r.created_at)}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        ${waitlisted ? `<button class="btn btn-outline btn-sm" onclick="moveRsvpIn('${r.id}')">↑ Move in</button>` : ''}
+        <button class="btn btn-outline btn-sm" title="Remove RSVP" onclick="removeRsvp('${r.id}')">✕</button>
+      </td>
+    </tr>`;
+
+  const rsvpd = new Set(state._rsvps.map(r => r.player_id).filter(Boolean));
+  const options = [...state.players]
+    .filter(p => !rsvpd.has(p.id) && !String(p.id).startsWith('guest-'))
+    .sort((a, b) => (a.active === false) - (b.active === false) || a.name.localeCompare(b.name))
+    .map(p => `<option value="${p.id}">${escHtml(p.name)}${p.active === false ? ' (inactive)' : ''}</option>`)
+    .join('');
 
   content.innerHTML = `
+    ${state._rsvps.length ? `
     <table class="lb-table" style="margin-top:8px;">
       <thead>
-        <tr>
-          <th>Name</th>
-          <th>RSVP'd</th>
-        </tr>
+        <tr><th></th><th>Name</th><th>RSVP'd</th><th></th></tr>
       </thead>
       <tbody>
-        ${rsvps.map(r => `
-          <tr>
-            <td style="font-weight:500">${r.name}</td>
-            <td style="font-family:'DM Mono',monospace;font-size:12px;">${new Date(r.created_at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</td>
-          </tr>
-        `).join('')}
+        ${ins.map((r, i) => row(r, i, false)).join('')}
+        ${wait.length ? `<tr><td colspan="4" style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);padding-top:14px;">⏳ Waitlist — moves up in this order when someone drops</td></tr>` : ''}
+        ${wait.map((r, i) => row(r, i, true)).join('')}
       </tbody>
-    </table>
-    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:8px;">${rsvps.length} RSVP${rsvps.length !== 1 ? 's' : ''}</div>
+    </table>` : '<span style="color:var(--text-muted);">No RSVPs yet.</span>'}
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:8px;">
+      ${ins.length}${cap ? `/${cap}` : ''} in${wait.length ? ` · ${wait.length} waitlisted` : ''}${cap && ins.length >= cap ? ' · 🔒 full' : ''}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+      <select id="rsvp-add-select" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);max-width:240px;">
+        <option value="">Add an RSVP…</option>
+        <option value="__guest__">Guest (not on roster)…</option>
+        ${options}
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="addRsvp()">+ Add</button>
+    </div>
   `;
   card.style.display = '';
+}
+
+// Commish edits to the RSVP list. Adds go through the same cap as everyone
+// else (a full game puts them on the waitlist); "Move in" overrides the cap.
+async function addRsvp() {
+  const sel = document.getElementById('rsvp-add-select');
+  const val = sel?.value;
+  if (!val) { toast('Pick a player to add.'); return; }
+  let row;
+  if (val === '__guest__') {
+    const name = prompt('Guest name:');
+    if (!name?.trim()) return;
+    row = { round_id: state.currentRound.id, player_id: null, name: name.trim() };
+  } else {
+    const p = state.players.find(x => x.id === val);
+    row = { round_id: state.currentRound.id, player_id: val, name: p?.name || '?' };
+  }
+  const { data, error } = await db.from('rsvps').insert(row).select('waitlisted').single();
+  if (error) { toast(error.code === '23505' ? `${row.name} already RSVP'd.` : 'Error: ' + error.message); return; }
+  toast(data.waitlisted ? `Game's full — ${row.name} is on the waitlist. Use ↑ Move in to go over the cap.` : `${row.name} is in.`);
+  renderRsvpSummary();
+}
+
+async function removeRsvp(id) {
+  const r = (state._rsvps || []).find(x => x.id === id);
+  if (!r || !confirm(`Remove ${r.name}'s RSVP?`)) return;
+  const { error } = await db.from('rsvps').delete().eq('id', id);
+  if (error) { toast('Error: ' + error.message); return; }
+  toast(`${r.name} removed.`);
+  if (!r.waitlisted) await promoteWaitlist(state.currentRound.id);
+  renderRsvpSummary();
+}
+
+async function moveRsvpIn(id) {
+  const r = (state._rsvps || []).find(x => x.id === id);
+  if (!r) return;
+  await promoteWaitlist(state.currentRound.id, id);
+  renderRsvpSummary();
+}
+
+// Fills open spots from the waitlist (or moves one named RSVP in). Sheila tags
+// whoever moves up in GroupMe, until RSVPs close at 9 AM on round day.
+async function promoteWaitlist(roundId, rsvpId) {
+  if (!db || !roundId) return;
+  const { data, error } = await db.functions.invoke('groupme-post', { body: { kind: 'promote', round_id: roundId, rsvp_id: rsvpId } });
+  if (error) { toast('Waitlist: ' + error.message); return; }
+  if (data?.promoted?.length) toast(`${data.promoted.join(', ')} moved up from the waitlist.`);
 }
 
 function copyRsvpList() {
   const rsvps = state._rsvps;
   if (!rsvps || !rsvps.length) { toast('No RSVPs to copy.'); return; }
   const r = state.currentRound;
+  const ins  = rsvps.filter(x => !x.waitlisted);
+  const wait = rsvps.filter(x => x.waitlisted);
   const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const lines = [
     `RSVPs — ${r.course} · ${dateStr}`,
-    ...rsvps.map((p, i) => `${i + 1}. ${p.name}`),
-    `(${rsvps.length} player${rsvps.length !== 1 ? 's' : ''})`,
+    ...ins.map((p, i) => `${i + 1}. ${p.name}`),
+    `(${ins.length} player${ins.length !== 1 ? 's' : ''})`,
+    ...(wait.length ? ['', 'Waitlist:', ...wait.map((p, i) => `${i + 1}. ${p.name}`)] : []),
   ];
   navigator.clipboard.writeText(lines.join('\n')).then(() => toast('RSVP list copied!'));
 }
@@ -3424,7 +3501,8 @@ async function importRsvps() {
   const { data: rsvps, error } = await db
     .from('rsvps')
     .select('player_id, name')
-    .eq('round_id', state.currentRound.id);
+    .eq('round_id', state.currentRound.id)
+    .eq('waitlisted', false);
 
   if (error) { toast('Error loading RSVPs.'); return; }
   if (!rsvps || !rsvps.length) { toast('No RSVPs to import.'); return; }

@@ -3,45 +3,58 @@
 // Pure functions (no Deno or Supabase calls) so they can be tested directly:
 //   npx tsx test/rsvp-parse.test.ts
 //
-// What people actually type, from a real week of the league chat:
+// What people actually type, from real weeks of the league chat:
 //   "In", "IN", "I'm in.", "In this week", "In Sunday.", "In for Sunday"
 //   "IN + MM", "In and MM", "In Sun, maybe MM"     MM = Madman, the early 9; ignored
-//   "In , if im welcomed back."                    anything after a comma/period is chatter
+//   "In , if im welcomed back.", "I'm in if I can be in first group…", "I am in and will cya Saturday"
 //   "We really should play, in"                    "in" as the last clause
-//   "In" then "+ SM"                               bringing a guest
+//   "In + Jeremy Wickham", "In with my brother-in-law"   bringing a guest
 //   "Dave and Spencer in Sunday"                   RSVPing yourself and a buddy
-//   "I'm out. Working", "Out this Sunday! No can play"
+//   "Andy Mullis is also in", "Harry is in too.", "My dad Bill Butler is in"   RSVPing someone else
+//   "I'm out. Working", "Out of town this week and next.", "Ben Holloway now out for tomorrow"
 // and what must be ignored:
-//   "My game Sunday. Who wants in?", "In?", numbered lists, "I'm likely out this Sunday, but…"
+//   "My game Sunday. Who wants in?", "In?", "Keep them in the fair.", "Dave had birdie in our group",
+//   numbered lists, "I'm likely out this Sunday, but…", "+ SM" (almost always a fat-fingered MM)
 
 export type Parsed =
-  | { kind: "in"; party: string[]; guests: string[] } // party: names before "in" ("dave and spencer in")
+  // party: names before "in" ("dave and spencer in", "harry is in") — may or may not include the sender
+  | { kind: "in"; party: string[]; guests: string[] }
   | { kind: "in_as"; name: string }
-  | { kind: "out" }
-  | { kind: "guest"; guests: string[] }               // "+ SM" on its own
+  | { kind: "out"; party: string[] }
+  | { kind: "guest"; guests: string[] }               // "+ Jeremy" on its own
   | { kind: "who" };
 
 // Words that can follow "in"/"out" without changing the meaning.
 const FILLER = new Set(`
   this that week weekend sunday sun sundays tomorrow today for the game round again too also as well
-  yes yep yup yeah ya sir yessir please pls guys gents fellas boys yall y'all all man bro
-  lets let's go like flynn baby buddy count me definitely def for sure
+  yes yep yup yeah ya sir yessir please pls guys gents fellas boys yall y'all all man bro and next
+  lets let's go like flynn baby buddy count me definitely def sure now
 `.trim().split(/\s+/));
 const OUT_FILLER = new Set(`
   of town sick working work sorry cant can't can no not play playing family travel traveling
-  unfortunately next time i'm im this week
+  unfortunately time i'm im
 `.trim().split(/\s+/));
-// Words that mean "pre" isn't a list of names ("who wants in", "we should play in").
+// Words that mean a phrase isn't a list of names ("who wants in", "keep them in the fair").
 const NOT_NAMES = new Set(`
-  who what when where why how is are was were you we they he she it i i'm im should could would
-  will can wants want play playing get got be been all anyone someone y'all yall the a an to of in out
+  who what when where why how is are was were you we they he she it i'm im they're he's she's we're
+  should could would can wants want play playing get got be been anyone someone everyone y'all yall
+  the a an to of in out at on from by about them us him her his our your their that this there here
+  keep put let lets had has have birdie group first second
 `.trim().split(/\s+/));
+// "my dad", "my brother-in-law Steve"
+const RELATIONS = new Set(`
+  dad father pops son brother bro uncle cousin nephew buddy friend boss neighbor
+  fatherinlaw brotherinlaw soninlaw fil bil
+`.trim().split(/\s+/));
+// Between a name and "in": "Harry is in", "Andy Mullis is also in", "Ben Holloway now out"
+const LINKS = new Set(["is", "are", "now", "also", "both", "too"]);
 
 const CLAUSE_END = /[\n.,!?;:]/;
 
 function clean(raw: string): string {
   return raw.toLowerCase()
     .replace(/[‘’]/g, "'")
+    .replace(/-in-law\b/g, "inlaw")
     // MM / Madman is the early nine; "in + mm", "in and mm", "maybe mm" all just mean "in".
     .replace(/\s*(?:\+|&|\band\b|,)?\s*(?:\bmaybe\s+)?\b(?:mad\s?m[ae]n|mm)\b/g, "")
     // Emoji and symbols become spaces; keep letters, digits, ' + & and clause punctuation.
@@ -54,44 +67,64 @@ function words(s: string): string[] {
   return s.trim().split(/\s+/).filter(Boolean);
 }
 
-// "spencer", "spencer t", "sm" → name parts; null if it doesn't look like a list of names.
+// "spencer", "joe b", "me", "my dad", "my dad bill butler" → name parts;
+// null if it doesn't look like a list of names. One- and two-letter names are
+// dropped: "+ SM" is a typo for MM far more often than a guest's initials.
 function splitNames(s: string): string[] | null {
   const parts = s.split(/\s*(?:\band\b|&|\+|,|\bwith\b|\bplus\b)\s*/).map(p => p.trim()).filter(Boolean);
   if (!parts.length) return null;
+  const out: string[] = [];
   for (const p of parts) {
-    const w = words(p);
-    if (w.length > 2 || w.some(x => NOT_NAMES.has(x) && x !== "me")) return null;
+    let w = words(p);
+    if (w.length === 1 && (w[0] === "me" || w[0] === "i")) { out.push(w[0]); continue; }
+    if (w[0] === "my") {
+      if (!RELATIONS.has(w[1])) return null;
+      if (w.length === 2) { out.push(`my ${w[1]}`); continue; }
+      w = w.slice(2); // "my dad bill butler" → "bill butler"
+    }
+    if (w.length > 2 || w.some(x => NOT_NAMES.has(x) || FILLER.has(x) || /^\d/.test(x))) return null;
+    if (w.join("").replace(/[^\p{L}]/gu, "").length < 3) continue;
+    out.push(w.join(" "));
   }
-  return parts;
+  return out;
 }
 
 // One clause → in/out, or null. Allows "i'm"/"count me" before and filler after.
-function parseClause(clause: string, allowParty: boolean): Parsed | null {
+function parseClause(clause: string): Parsed | null {
   const m = clause.match(/^(.*?)\b(?:(?:i'?m|im|i am|count me)\s+)?(in+|out)\b(.*)$/);
   if (!m) return null;
   const [, pre, word, post] = m;
   const isIn = word.startsWith("in");
 
+  // Names before in/out: "dave and spencer", "andy mullis is also", "harry's"
   let party: string[] = [];
-  if (pre.trim()) {
-    // Only "dave and spencer in" style — two or more names, one of them the sender.
-    const names = allowParty && isIn ? splitNames(pre) : null;
-    if (!names || names.length < 2) return null;
+  const preW = words(pre);
+  if (preW.length) {
+    if (preW[preW.length - 1].endsWith("'s")) preW[preW.length - 1] = preW[preW.length - 1].slice(0, -2);
+    while (preW.length && LINKS.has(preW[preW.length - 1])) preW.pop();
+    const names = splitNames(preW.join(" "));
+    if (!names?.length) return null;
     party = names;
   }
 
   let guests: string[] = [];
   const rest = post.trim();
-  const plus = rest.match(/^(?:\+|&|and|with|plus)\s*(?:1\s+)?(.+)$/);
-  if (isIn && plus) {
-    const names = splitNames(plus[1]);
-    if (!names) return null;
-    guests = names;
-  } else if (rest) {
+  const plus = rest.match(/^(\+|&|and|with|plus)\s*(?:1\s+)?(.+)$/);
+  const restOk = (r: string) => {
     const ok = isIn ? FILLER : new Set([...FILLER, ...OUT_FILLER]);
-    if (!words(rest).every(w => ok.has(w))) return null;
+    return words(r).every(w => ok.has(w));
+  };
+  if (isIn && plus) {
+    const names = splitNames(plus[2]);
+    if (names) guests = names.filter(n => n !== "me" && n !== "i");
+    // "I am in and will cya Saturday" — whatever follows "and" is chatter.
+    else if (plus[1] !== "and" && !restOk(rest)) return null;
+  } else if (isIn && /^if\b/.test(rest)) {
+    // "I'm in if I can be in the first group" — still in.
+  } else if (rest && !restOk(rest)) {
+    return null;
   }
-  return isIn ? { kind: "in", party, guests } : { kind: "out" };
+  return isIn ? { kind: "in", party, guests } : { kind: "out", party };
 }
 
 export function parseRsvp(raw: string): Parsed | null {
@@ -107,11 +140,11 @@ export function parseRsvp(raw: string): Parsed | null {
 
   if (/^who'?s in\b[\s?!.]*$/.test(text)) return { kind: "who" };
 
-  // "+ SM", "+1 Spencer" on their own.
+  // "+ Jeremy", "+1 Spencer" on their own.
   const plusOnly = text.match(/^\+\s*(?:1\s+)?([^\n.,!?;:]+)[\s.!]*$/);
   if (plusOnly) {
-    const names = splitNames(plusOnly[1]);
-    return names ? { kind: "guest", guests: names } : null;
+    const names = splitNames(plusOnly[1])?.filter(n => n !== "me" && n !== "i");
+    return names?.length ? { kind: "guest", guests: names } : null;
   }
 
   // Split into clauses, remembering what ended each one.
@@ -130,14 +163,13 @@ export function parseRsvp(raw: string): Parsed | null {
   // Usually the first clause: "In , if im welcomed back."
   const first = clauses[0];
   if (first.end !== "?") {
-    const p = parseClause(first.text, true);
+    const p = parseClause(first.text);
     if (p) return p;
   }
   // Or the last: "We really should play, in". Strict — just in/out, nothing else.
   const last = clauses[clauses.length - 1];
-  if (clauses.length > 1 && last.end !== "?") {
-    const p = parseClause(last.text, false);
-    if (p && (p.kind === "out" || (!p.party.length && !p.guests.length)) && /^(?:i'?m |im |count me )?(?:in+|out)$/.test(last.text)) return p;
+  if (clauses.length > 1 && last.end !== "?" && /^(?:i'?m |im |count me )?(?:in+|out)$/.test(last.text)) {
+    return parseClause(last.text);
   }
   return null;
 }

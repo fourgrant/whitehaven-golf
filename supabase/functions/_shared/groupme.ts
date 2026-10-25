@@ -23,18 +23,39 @@ export function adminClient(): SupabaseClient {
   );
 }
 
+export type Mention = { userId: string; name: string };
+
 // Posts text as Sheila. Long messages are split on line breaks so nothing is
-// cut off mid-name.
-export async function postToGroup(text: string): Promise<void> {
+// cut off mid-name. Mentions turn "@Name" in the text into a real GroupMe tag
+// (so that player gets a notification); if GroupMe rejects them, post plain.
+export async function postToGroup(text: string, mentions: Mention[] = []): Promise<void> {
   const botId = Deno.env.get("GROUPME_BOT_ID");
   if (!botId) throw new Error("GROUPME_BOT_ID is not set");
 
   for (const chunk of splitMessage(text)) {
-    const res = await fetch("https://api.groupme.com/v3/bots/post", {
+    const tags = mentions
+      .map(m => ({ ...m, at: chunk.indexOf("@" + m.name) }))
+      .filter(m => m.at >= 0);
+    const body: Record<string, unknown> = { bot_id: botId, text: chunk };
+    if (tags.length) {
+      body.attachments = [{
+        type: "mentions",
+        user_ids: tags.map(m => m.userId),
+        loci: tags.map(m => [m.at, m.name.length + 1]),
+      }];
+    }
+    let res = await fetch("https://api.groupme.com/v3/bots/post", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bot_id: botId, text: chunk }),
+      body: JSON.stringify(body),
     });
+    if (!res.ok && tags.length) {
+      res = await fetch("https://api.groupme.com/v3/bots/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bot_id: botId, text: chunk }),
+      });
+    }
     if (!res.ok) throw new Error(`GroupMe post failed: ${res.status} ${await res.text()}`);
   }
 }
@@ -83,6 +104,12 @@ function money(n: number): string {
 export type Round = {
   id: string; date: string; course: string; buyin_per_player: number; status: string;
   team_scores: Record<string, number> | null; round_state: Record<string, any> | null;
+  max_players: number | null; rsvp_list_sig: string | null;
+};
+
+export type Rsvp = {
+  id: string; name: string; player_id: string | null; waitlisted: boolean; created_at: string;
+  players: { groupme_user_id: string | null } | null;
 };
 
 export async function getRound(db: SupabaseClient, roundId: string): Promise<Round | null> {
@@ -98,9 +125,64 @@ export async function getOpenRound(db: SupabaseClient): Promise<Round | null> {
   return data?.[0] ?? null;
 }
 
-export async function getRsvpNames(db: SupabaseClient, roundId: string): Promise<string[]> {
-  const { data } = await db.from("rsvps").select("name").eq("round_id", roundId).order("created_at");
-  return (data ?? []).map((r: { name: string }) => r.name);
+// Everyone who RSVP'd, in the order they did.
+export async function getRsvps(db: SupabaseClient, roundId: string): Promise<Rsvp[]> {
+  const { data, error } = await db.from("rsvps")
+    .select("id, name, player_id, waitlisted, created_at, players(groupme_user_id)")
+    .eq("round_id", roundId).order("created_at");
+  if (error) throw error;
+  return (data ?? []) as unknown as Rsvp[];
+}
+
+// ===== CAP + WAITLIST =====
+// The rsvps_waitlist trigger puts new RSVPs past rounds.max_players on the
+// waitlist. When a spot opens, the earliest waitlisted player moves up.
+
+export function inList(rsvps: Rsvp[]): Rsvp[] { return rsvps.filter(r => !r.waitlisted); }
+export function waitList(rsvps: Rsvp[]): Rsvp[] { return rsvps.filter(r => r.waitlisted); }
+
+// Moves people off the waitlist: one named RSVP (the commish's "Move in"), or
+// as many as there are open spots. Returns who moved up.
+export async function promoteFromWaitlist(db: SupabaseClient, round: Round, rsvpId?: string): Promise<Rsvp[]> {
+  const rsvps = await getRsvps(db, round.id);
+  let toPromote: Rsvp[];
+  if (rsvpId) {
+    toPromote = rsvps.filter(r => r.id === rsvpId && r.waitlisted);
+  } else {
+    const open = round.max_players == null ? Infinity : round.max_players - inList(rsvps).length;
+    toPromote = open > 0 ? waitList(rsvps).slice(0, open) : [];
+  }
+  if (!toPromote.length) return [];
+  const { error } = await db.from("rsvps").update({ waitlisted: false }).in("id", toPromote.map(r => r.id));
+  if (error) throw error;
+  return toPromote;
+}
+
+// "@Name" for players Sheila knows on GroupMe (so they get tagged), plain name otherwise.
+export function tagged(rsvps: Rsvp[]): { names: string[]; mentions: Mention[] } {
+  const mentions: Mention[] = [];
+  const names = rsvps.map(r => {
+    const userId = r.players?.groupme_user_id;
+    if (!userId) return r.name;
+    mentions.push({ userId, name: r.name });
+    return "@" + r.name;
+  });
+  return { names, mentions };
+}
+
+export async function postPromoted(round: Round, promoted: Rsvp[]): Promise<void> {
+  if (!promoted.length) return;
+  const { names, mentions } = tagged(promoted);
+  await postToGroup(`🎉 A spot opened up — ${names.join(", ")}, you're off the waitlist and in for ${fmtDate(round.date)}.`, mentions);
+}
+
+// Who's on the list right now; the evening post skips when this hasn't changed.
+export function listSig(rsvps: Rsvp[]): string {
+  return inList(rsvps).map(r => r.id).join(",") + "|" + waitList(rsvps).map(r => r.id).join(",");
+}
+
+export async function saveListSig(db: SupabaseClient, round: Round, rsvps: Rsvp[]): Promise<void> {
+  await db.from("rounds").update({ rsvp_list_sig: listSig(rsvps) }).eq("id", round.id);
 }
 
 // RSVPs close at tee time, 9 AM Central on round day, matching rsvp.js. Keeping
@@ -117,33 +199,53 @@ export function rsvpLink(round: Round): string {
 
 export function msgRsvpOpen(round: Round): string {
   return [
-    `⛳ RSVPs are open for ${fmtDate(round.date)} at ${round.course} — $${round.buyin_per_player} all-in.`,
+    `⛳ RSVPs are open for ${fmtDate(round.date)} at ${round.course} — $${round.buyin_per_player} all-in.` +
+      (round.max_players != null ? ` Capped at ${round.max_players}; after that it's a waitlist.` : ``),
     ``,
     `Reply "in" right here to RSVP (or "out" to drop). Or use the link:`,
     rsvpLink(round),
   ].join("\n");
 }
 
-export function msgRsvpList(round: Round, names: string[]): string {
-  if (!names.length) {
+function capLabel(round: Round, n: number): string {
+  return round.max_players == null ? `${n}` : `${n}/${round.max_players}`;
+}
+
+function waitlistLines(rsvps: Rsvp[]): string[] {
+  const w = waitList(rsvps);
+  return w.length ? [``, `⏳ Waitlist: ` + w.map((r, i) => `${i + 1}. ${r.name}`).join(", ")] : [];
+}
+
+function isFull(round: Round, rsvps: Rsvp[]): boolean {
+  return round.max_players != null && inList(rsvps).length >= round.max_players;
+}
+
+export function msgRsvpList(round: Round, rsvps: Rsvp[]): string {
+  const ins = inList(rsvps);
+  if (!ins.length) {
     return `Nobody's in yet for ${fmtDate(round.date)}. Reply "in" to be the first.`;
   }
   return [
-    `📋 In for ${fmtDate(round.date)} (${names.length}):`,
-    ...names.map((n, i) => `${i + 1}. ${n}`),
+    `📋 In for ${fmtDate(round.date)} (${capLabel(round, ins.length)}):`,
+    ...ins.map((r, i) => `${i + 1}. ${r.name}`),
+    ...waitlistLines(rsvps),
     ``,
-    `Reply "in" to join.`,
+    isFull(round, rsvps) ? `🔒 We're full. Reply "in" to join the waitlist.` : `Reply "in" to join.`,
   ].join("\n");
 }
 
-export function msgReminder(round: Round, names: string[]): string {
+export function msgReminder(round: Round, rsvps: Rsvp[]): string {
+  const ins = inList(rsvps);
   const lines = [`⛳ Tomorrow at ${round.course} — $${round.buyin_per_player} all-in.`];
-  if (names.length) {
-    lines.push(``, `${names.length} in so far:`, names.join(", "));
+  if (ins.length) {
+    lines.push(``, `${capLabel(round, ins.length)} in so far:`, ins.map(r => r.name).join(", "));
+    lines.push(...waitlistLines(rsvps));
   } else {
     lines.push(``, `Nobody's RSVP'd yet.`);
   }
-  lines.push(``, `Reply "in" or "out" by 9 AM tomorrow — that's when RSVPs close.`);
+  lines.push(``, isFull(round, rsvps)
+    ? `We're full — reply "in" for the waitlist, or "out" by 9 AM tomorrow if you can't make it.`
+    : `Reply "in" or "out" by 9 AM tomorrow — that's when RSVPs close.`);
   return lines.join("\n");
 }
 

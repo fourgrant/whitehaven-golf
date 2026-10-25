@@ -39,8 +39,8 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 - `config.js` — **gitignored**; injected by GitHub Actions from secrets; copy `config.example.js` for local dev
 - `supabase/schema.sql` — tables, RLS policies, seed data
 - `.github/workflows/deploy.yml` — injects config.js, deploys to `gh-pages` branch
-- `.github/workflows/reminders.yml` — daily cron; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round
-- `supabase/functions/groupme-post/` — Sheila posts to GroupMe (rsvp_open, rsvp_list, reminder, teams, results); text is built server-side from the DB. Secret: `GROUPME_BOT_ID`
+- `.github/workflows/reminders.yml` — daily crons; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round (~1 PM Central) and the RSVP list each evening (~7 PM Central, only if it changed)
+- `supabase/functions/groupme-post/` — Sheila posts to GroupMe (rsvp_open, rsvp_list, reminder, teams, results, evening_list, promote); text is built server-side from the DB. Secret: `GROUPME_BOT_ID`
 - `supabase/functions/groupme-callback/` — bot callback; acts on RSVP replies and writes `rsvps`. Reading rules (in/out, "+ guest", "X and Y in", MM ignored) live in `_shared/rsvp-parse.ts`, tested by `npx tsx test/rsvp-parse.test.ts` against real chat messages. Deployed `--no-verify-jwt`; checks `?secret=` against `GROUPME_CALLBACK_SECRET`
 - `supabase/functions/_shared/groupme.ts` — shared message builders and GroupMe post helper
 
@@ -83,10 +83,10 @@ Team scores are manually entered (not auto-calculated from individual scores).
 | Table | Key columns |
 |---|---|
 | `players` | name, avg_score, rounds_played, active, email, phone, groupme_user_id, base_avg, base_rounds |
-| `rounds` | date, course, buyin_per_player, cth_per_player, status, team_scores (jsonb), round_state (jsonb) |
+| `rounds` | date, course, buyin_per_player, cth_per_player, status, team_scores (jsonb), round_state (jsonb), max_players (RSVP cap, default 24), rsvp_list_sig |
 | `round_players` | round_id, player_id, team, score, holes_won, cth_winner, cth_count, paid_in, paid_out |
 | `round_results` | round_id, player_id, team_winnings, skin_winnings, cth_winnings, total_winnings |
-| `rsvps` | round_id, player_id (unique per round), name; email/phone legacy, no longer collected |
+| `rsvps` | round_id, player_id (unique per round; null = guest), name, waitlisted (set by the `rsvps_waitlist` trigger from `rounds.max_players`); email/phone legacy |
 
 RLS enabled on all tables with public read + write (commish auth is client-side — appropriate for a private friend-group app).
 
