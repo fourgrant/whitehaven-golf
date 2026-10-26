@@ -2885,23 +2885,48 @@ async function togglePlayerActive(playerId, active) {
   renderPlayersAdmin();
 }
 
+// Players tab groups: Recent (played in the last 8 rounds), Other (on the roster but
+// not recent), Deactivated. Alphabetical within each; the last two collapse like the
+// Teams tab's inactive list and auto-open when a search matches inside them.
+const playersAdminExpanded = { other: false, deactivated: false };
+
+function togglePlayersAdminGroup(key) {
+  playersAdminExpanded[key] = !playersAdminExpanded[key];
+  renderPlayersAdmin();
+}
+
 function renderPlayersAdmin() {
   const container = document.getElementById('players-admin-list');
   if (!container) return;
 
-  const search = (document.getElementById('players-admin-search')?.value || '').toLowerCase();
-  const active   = state.players.filter(p => p.active !== false);
-  const inactive = state.players.filter(p => p.active === false);
-  const all = [...active, ...inactive].filter(p => !search || p.name.toLowerCase().includes(search));
+  if (!state.activityData) {
+    computeActivityData().then(() => renderPlayersAdmin());
+    return;
+  }
 
-  if (!all.length) {
+  const search = (document.getElementById('players-admin-search')?.value || '').toLowerCase();
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const matches = p => !search || p.name.toLowerCase().includes(search);
+  const useActivity = state.activityData.totalTrackedRounds >= 8;
+
+  const rostered    = state.players.filter(p => p.active !== false);
+  const recent      = rostered.filter(p => !useActivity || !isInactivePlayer(p.id)).sort(byName);
+  const other       = useActivity ? rostered.filter(p => isInactivePlayer(p.id)).sort(byName) : [];
+  const deactivated = state.players.filter(p => p.active === false).sort(byName);
+
+  if (![...recent, ...other, ...deactivated].some(matches)) {
     container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:8px 0;">No players found.</p>';
     return;
   }
 
-  container.innerHTML = all.map(p => {
+  function buildRow(p, showLastPlayed) {
     const isActive = p.active !== false;
     const avg      = p.avg_score != null ? parseFloat(p.avg_score).toFixed(1) : '—';
+    let meta = `${p.rounds_played || 0} rounds · avg ${avg}`;
+    if (showLastPlayed && useActivity) {
+      const offset = state.activityData.playerActivity.get(p.id);
+      meta += offset === undefined ? ' · never played' : ` · last played ${offset} rounds ago`;
+    }
     const contactLine = (p.email || p.phone)
       ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone].filter(Boolean).map(escHtml).join(' · ')}</div>`
       : '';
@@ -2909,7 +2934,7 @@ function renderPlayersAdmin() {
       <div class="player-admin-row${isActive ? '' : ' player-inactive'}">
         <div style="flex:1;min-width:0;">
           <div class="player-admin-name">${escHtml(p.name)}</div>
-          <div class="player-admin-meta">${p.rounds_played || 0} rounds · avg ${avg}</div>
+          <div class="player-admin-meta">${meta}</div>
           ${contactLine}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -2933,7 +2958,46 @@ function renderPlayersAdmin() {
         </div>
       </div>
     `;
-  }).join('');
+  }
+
+  const count = n => `${n} player${n !== 1 ? 's' : ''}`;
+  let html = '';
+
+  if (other.length || deactivated.length) {
+    html += `
+      <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <div class="section-label" style="margin:0;">Recent Players</div>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">${count(recent.length)}${useActivity ? ' · played in last 8 rounds' : ''}</span>
+      </div>
+    `;
+  }
+  const recentShown = recent.filter(matches);
+  if (recentShown.length) html += recentShown.map(p => buildRow(p, false)).join('');
+  else if (!search) html += '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">No recent players.</div>';
+
+  function collapsible(key, title, list, note) {
+    if (!list.length) return '';
+    const shown = list.filter(matches);
+    const expanded = (search && shown.length > 0) || playersAdminExpanded[key];
+    let out = `
+      <div class="inactive-section-toggle" onclick="togglePlayersAdminGroup('${key}')">
+        <span>${title}</span>
+        <span>${count(list.length)} · ${expanded ? 'hide ▲' : 'expand ▼'}</span>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:8px;margin-top:2px;">${note}</div>
+    `;
+    if (expanded && shown.length) out += shown.map(p => buildRow(p, key === 'other')).join('');
+    else if (expanded && search) out += '<div style="font-size:13px;color:var(--text-muted);padding:4px 0;">No matches here.</div>';
+    return out;
+  }
+
+  html += collapsible('other', 'Other Players', other,
+    "Hasn't played in the last 8 rounds — still shows at check-in");
+  html += collapsible('deactivated', 'Deactivated', deactivated,
+    "Hidden from check-in — Reactivate to bring back");
+
+  container.innerHTML = html;
 }
 
 function togglePlayerEdit(playerId) {
