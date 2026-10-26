@@ -3446,7 +3446,9 @@ async function renderRsvpSummary() {
   if (error) { content.textContent = 'Error loading RSVPs.'; card.style.display = ''; return; }
 
   state._rsvps = rsvps || []; // cache for copyRsvpList()
-  const ins  = state._rsvps.filter(r => !r.waitlisted);
+  // "In" is alphabetical so names are easy to find; the waitlist stays in RSVP
+  // order because that's the order people move up.
+  const ins  = state._rsvps.filter(r => !r.waitlisted).sort((a, b) => a.name.localeCompare(b.name));
   const wait = state._rsvps.filter(r => r.waitlisted);
   const cap  = state.currentRound.max_players;
 
@@ -3547,7 +3549,7 @@ function copyRsvpList() {
   const rsvps = state._rsvps;
   if (!rsvps || !rsvps.length) { toast('No RSVPs to copy.'); return; }
   const r = state.currentRound;
-  const ins  = rsvps.filter(x => !x.waitlisted);
+  const ins  = rsvps.filter(x => !x.waitlisted).sort((a, b) => a.name.localeCompare(b.name));
   const wait = rsvps.filter(x => x.waitlisted);
   const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const lines = [

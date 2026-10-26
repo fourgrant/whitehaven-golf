@@ -139,6 +139,8 @@ export async function getRsvps(db: SupabaseClient, roundId: string): Promise<Rsv
 // waitlist. When a spot opens, the earliest waitlisted player moves up.
 
 export function inList(rsvps: Rsvp[]): Rsvp[] { return rsvps.filter(r => !r.waitlisted); }
+// The "in" list as players read it: A–Z. The waitlist keeps RSVP order (who's next).
+export function inListAZ(rsvps: Rsvp[]): Rsvp[] { return inList(rsvps).sort((a, b) => a.name.localeCompare(b.name)); }
 export function waitList(rsvps: Rsvp[]): Rsvp[] { return rsvps.filter(r => r.waitlisted); }
 
 // Moves people off the waitlist: one named RSVP (the commish's "Move in"), or
@@ -221,7 +223,7 @@ function isFull(round: Round, rsvps: Rsvp[]): boolean {
 }
 
 export function msgRsvpList(round: Round, rsvps: Rsvp[]): string {
-  const ins = inList(rsvps);
+  const ins = inListAZ(rsvps);
   if (!ins.length) {
     return `Nobody's in yet for ${fmtDate(round.date)}. Reply "in" to be the first.`;
   }
@@ -235,7 +237,7 @@ export function msgRsvpList(round: Round, rsvps: Rsvp[]): string {
 }
 
 export function msgReminder(round: Round, rsvps: Rsvp[]): string {
-  const ins = inList(rsvps);
+  const ins = inListAZ(rsvps);
   const lines = [`⛳ Tomorrow at ${round.course} — $${round.buyin_per_player} all-in.`];
   if (ins.length) {
     lines.push(``, `${capLabel(round, ins.length)} in so far:`, ins.map(r => r.name).join(", "));
