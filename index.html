@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Sheila">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=ccf7980c">
+  <link rel="stylesheet" href="style.css?v=deab59e8">
 </head>
 <body>
 
@@ -435,7 +435,7 @@
       <div class="section-label" style="margin-top:0;">Before round day</div>
       <ol style="padding-left:20px;font-size:14px;line-height:2;">
         <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link.</li>
-        <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). <strong>Sheila stays quiet when things go right</strong>: she doesn't reply to every "in". She only speaks up for an unknown name, RSVPs closed, the game filling up, the waitlist, or a spot opening. Every evening around 7 PM she posts the list, but only if it changed that day. Anyone can reply <strong>who's in</strong> to get the list.</li>
+        <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). <strong>Sheila stays quiet when things go right</strong>: she doesn't reply to every "in". She only speaks up for an unknown name, RSVPs closed, the game filling up, the waitlist, or a spot opening. Every evening around 9 PM she posts the list, but only if it changed that day. Anyone can reply <strong>who's in</strong> to get the list.</li>
         <li><strong>Max players</strong> (Round tab, default 24) caps the game. Once it's full, Sheila posts "🔒 we're full", and later "in" replies go on a <strong>waitlist</strong>. When someone says "out", the next person on the waitlist moves up automatically and Sheila tags them in GroupMe. Raising the cap moves people up too.</li>
         <li>Sheila reads replies the way people actually type them: <em>IN + MM</em>, <em>In for Sunday</em>, <em>I'm in.</em>, <em>In, if I'm welcomed back</em>, <em>We really should play, in</em>, and <em>I'm out. Working</em> all count. MM (Madman) is ignored. Questions like <em>Who wants in?</em> and ordinary chatter are left alone.</li>
         <li><strong>Bringing someone?</strong> <em>In + Jeremy Wickham</em>, <em>+ Jeremy</em> on its own, <em>In with my brother-in-law</em>, or <em>Dave and Spencer in</em>. <strong>RSVPing for someone else</strong> works too: <em>Harry is in too</em>, <em>My dad Bill Butler is in</em>, <em>Ben Holloway now out</em>. A roster name gets RSVP'd. Anyone else is saved as a guest, e.g. "Jeremy Wickham (Will Goodwin's guest)". When you Import RSVPs, Sheila lists those guests so you can add them with + Add Guest. One- and two-letter names like "+ SM" are ignored, because they're almost always a typo for MM.</li>
@@ -745,6 +745,17 @@
     <div class="card">
       <div class="release-entry">
         <div class="release-header">
+          <span class="release-version">v2.13</span>
+          <span class="release-date">October 27, 2026</span>
+        </div>
+        <h3>Earlier Nightly List</h3>
+        <ul class="release-list">
+          <li><strong>Nightly RSVP list moved to ~9 PM.</strong> Sheila's evening list (posted only if it changed that day) now goes out around 9 PM Central instead of late at night.</li>
+        </ul>
+      </div>
+
+      <div class="release-entry">
+        <div class="release-header">
           <span class="release-version">v2.12</span>
           <span class="release-date">October 26, 2026</span>
         </div>
@@ -774,7 +785,7 @@
         <ul class="release-list">
           <li><strong>Player cap and waitlist.</strong> New <em>Max players</em> field on the Round tab (default 24). Once the game is full, Sheila says so, and new RSVPs from GroupMe, the link or the app join a waitlist. When someone drops, the next person moves up and Sheila tags them.</li>
           <li><strong>Edit RSVPs in the app.</strong> The RSVPs card on the Teams tab can remove an RSVP, move someone in from the waitlist, and add any player or guest.</li>
-          <li><strong>Quieter chat.</strong> No reply to every "in" or "out". Sheila posts only when someone needs to act, plus one list around 7 PM, and only if it changed that day.</li>
+          <li><strong>Quieter chat.</strong> No reply to every "in" or "out". Sheila posts only when someone needs to act, plus one list around 9 PM, and only if it changed that day.</li>
           <li><strong>RSVPing for others.</strong> <em>Harry is in too</em>, <em>Andy Mullis is also in</em>, <em>My dad Bill Butler is in</em>, <em>Ben Holloway now out</em>, <em>In with my brother-in-law</em>, <em>I'm in if I can be in the first group</em>, and <em>I am in and will cya Saturday</em> now work. "+ SM"-style initials are ignored as MM typos.</li>
         </ul>
       </div>
@@ -1111,10 +1122,10 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=ccf7980c"></script>
+<script src="config.js?v=deab59e8"></script>
 <!-- App logic -->
-<script src="app.js?v=ccf7980c"></script>
-<script src="scorecard.js?v=ccf7980c"></script>
+<script src="app.js?v=deab59e8"></script>
+<script src="scorecard.js?v=deab59e8"></script>
 
 </body>
 </html>
