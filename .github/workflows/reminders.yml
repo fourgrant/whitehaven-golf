@@ -4,8 +4,8 @@ on:
   schedule:
     # Daily at 6PM UTC (~1PM Central). Posts a GroupMe reminder when a round is tomorrow.
     - cron: '0 18 * * *'
-    # Daily at midnight UTC (~7PM Central). Posts the RSVP list if it changed since the last one.
-    - cron: '0 0 * * *'
+    # Daily at 2AM UTC (~9PM Central). Posts the RSVP list if it changed since the last one.
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -23,5 +23,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          MODE: ${{ github.event.schedule == '0 0 * * *' && 'evening' || 'reminder' }}
+          MODE: ${{ github.event.schedule == '0 2 * * *' && 'evening' || 'reminder' }}
         run: node scripts/send-reminders.js
