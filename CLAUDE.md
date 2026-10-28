@@ -39,7 +39,7 @@ Vanilla HTML/JS + Supabase JS v2 (CDN) + GitHub Pages. No build step, no framewo
 - `config.js` — **gitignored**; injected by GitHub Actions from secrets; copy `config.example.js` for local dev
 - `supabase/schema.sql` — tables, RLS policies, seed data
 - `.github/workflows/deploy.yml` — injects config.js, deploys to `gh-pages` branch
-- `.github/workflows/reminders.yml` — daily crons; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round (~1 PM Central) and the RSVP list each evening (~9 PM Central, only if it changed)
+- `.github/workflows/reminders.yml` — daily crons; `scripts/send-reminders.js` posts a GroupMe reminder the day before a round (~1 PM Central) and the RSVP list each evening (~9 PM Central, only if it changed). Quiet hours 11 PM–6 AM Central: no automated posts (script + `quietHours()` in `_shared/groupme.ts`); replies to people still go out
 - `supabase/functions/groupme-post/` — Sheila posts to GroupMe (rsvp_open, rsvp_list, reminder, teams, results, evening_list, promote); text is built server-side from the DB. Secret: `GROUPME_BOT_ID`
 - `supabase/functions/groupme-callback/` — bot callback; acts on RSVP replies and writes `rsvps`. Reading rules (in/out, "+ guest", "X and Y in", MM ignored) live in `_shared/rsvp-parse.ts`, tested by `npx tsx test/rsvp-parse.test.ts` against real chat messages. Deployed `--no-verify-jwt`; checks `?secret=` against `GROUPME_CALLBACK_SECRET`
 - `supabase/functions/_shared/groupme.ts` — shared message builders and GroupMe post helper
