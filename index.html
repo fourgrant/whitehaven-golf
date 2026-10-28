@@ -436,6 +436,7 @@
       <ol style="padding-left:20px;font-size:14px;line-height:2;">
         <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link.</li>
         <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). <strong>Sheila stays quiet when things go right</strong>: she doesn't reply to every "in". She only speaks up for an unknown name, RSVPs closed, the game filling up, the waitlist, or a spot opening. Every evening around 9 PM she posts the list, but only if it changed that day. Anyone can reply <strong>who's in</strong> to get the list.</li>
+        <li><strong>Quiet hours, 11 PM–6 AM Central.</strong> Overnight Sheila posts nothing on her own: no nightly list, no reminder, no "spot opened" tag. If the 9 PM job runs late and lands in quiet hours, it's skipped, and the next evening's list catches up. She still answers anyone who messages her overnight (<em>who's in</em>, an unknown name, the waitlist). A waitlisted player who moves up overnight still gets the spot. They just aren't tagged, and they'll show on the next evening list. Commish buttons like 📣 Post List work at any hour.</li>
         <li><strong>Max players</strong> (Round tab, default 24) caps the game. Once it's full, Sheila posts "🔒 we're full", and later "in" replies go on a <strong>waitlist</strong>. When someone says "out", the next person on the waitlist moves up automatically and Sheila tags them in GroupMe. Raising the cap moves people up too.</li>
         <li>Sheila reads replies the way people actually type them: <em>IN + MM</em>, <em>In for Sunday</em>, <em>I'm in.</em>, <em>In, if I'm welcomed back</em>, <em>We really should play, in</em>, and <em>I'm out. Working</em> all count. MM (Madman) is ignored. Questions like <em>Who wants in?</em> and ordinary chatter are left alone.</li>
         <li><strong>Bringing someone?</strong> <em>In + Jeremy Wickham</em>, <em>+ Jeremy</em> on its own, <em>In with my brother-in-law</em>, or <em>Dave and Spencer in</em>. <strong>RSVPing for someone else</strong> works too: <em>Harry is in too</em>, <em>My dad Bill Butler is in</em>, <em>Ben Holloway now out</em>. A roster name gets RSVP'd. Anyone else is saved as a guest, e.g. "Jeremy Wickham (Will Goodwin's guest)". When you Import RSVPs, Sheila lists those guests so you can add them with + Add Guest. One- and two-letter names like "+ SM" are ignored, because they're almost always a typo for MM.</li>
@@ -743,6 +744,19 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.14</span>
+          <span class="release-date">October 28, 2026</span>
+        </div>
+        <h3>Quiet Hours</h3>
+        <ul class="release-list">
+          <li><strong>No automated posts from 11 PM to 6 AM Central.</strong> GitHub ran the 9 PM list job almost six hours late, so it went out at 2:46 AM. Now the nightly list, the day-before reminder, and the waitlist "spot opened" tag never post overnight. A late run is skipped, and the next evening's list catches up.</li>
+          <li><strong>Sheila still answers overnight.</strong> Replies to someone who just messaged her, like <em>who's in</em> or "I don't see you on the roster", go out at any hour. Commish buttons work at any hour too.</li>
+          <li>Scheduled jobs now run a few minutes off the hour, when GitHub's queue is shorter. The day-before reminder also works out "tomorrow" in Central time.</li>
+        </ul>
+      </div>
+
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.13</span>

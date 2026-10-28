@@ -17,6 +17,8 @@
 // She speaks up only when someone needs to act — an unknown name, RSVPs
 // closed, the game filling up, the waitlist, or a spot opening — and the
 // nightly evening_list post (groupme-post) shows everyone the running list.
+// From 11 PM to 6 AM Central she only replies to the person who wrote; the
+// waitlist "spot opened" tag is skipped (the next evening list shows them in).
 //
 // A GroupMe sender is matched to a player once (by name, or "in as ...") and
 // the GroupMe user id is saved to players.groupme_user_id for next time.
@@ -29,7 +31,7 @@
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
-  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, fmtDate, msgRsvpList, Round,
+  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, fmtDate, msgRsvpList, Round,
   inList, waitList, promoteFromWaitlist, postPromoted, tagged,
 } from "../_shared/groupme.ts";
 import { parseRsvp, findPlayer, isSender, Parsed } from "../_shared/rsvp-parse.ts";
@@ -142,7 +144,11 @@ async function handle(db: SupabaseClient, msg: { name: string; user_id: string }
     const { data: removed } = await db.from("rsvps").delete()
       .eq("round_id", round.id).in("player_id", ids).select("waitlisted");
     // A spot opened: move the next person up and tag them. Otherwise, quiet.
-    if (removed?.some(r => !r.waitlisted)) await postPromoted(round, await promoteFromWaitlist(db, round));
+    // Overnight they're still moved up, just not tagged; the next evening list shows them in.
+    if (removed?.some(r => !r.waitlisted)) {
+      const promoted = await promoteFromWaitlist(db, round);
+      if (!quietHours()) await postPromoted(round, promoted);
+    }
     return;
   }
 

@@ -15,7 +15,7 @@
 //          (4xx/5xx JSON): { error: string }
 
 import {
-  adminClient, getRound, getOpenRound, getRsvps, postToGroup, rsvpsClosed, listSig, saveListSig,
+  adminClient, getRound, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, listSig, saveListSig,
   promoteFromWaitlist, postPromoted, msgRsvpOpen, msgRsvpList, msgReminder, msgTeams, msgResults,
 } from "../_shared/groupme.ts";
 
@@ -42,6 +42,12 @@ Deno.serve(async (req) => {
 
   const db = adminClient();
   try {
+    // Scheduled posts never go out in quiet hours (11 PM–6 AM Central) — e.g.
+    // when GitHub runs the nightly cron hours late. Commish buttons still work.
+    if ((kind === "evening_list" || kind === "reminder") && quietHours()) {
+      return json({ ok: true, skipped: "quiet hours" });
+    }
+
     // Nightly: post the list only when it has changed, so a quiet day stays quiet.
     if (kind === "evening_list") {
       const round = await getOpenRound(db);

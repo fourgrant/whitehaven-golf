@@ -1,11 +1,13 @@
 name: Send Round Reminders
 
+# Off the top of the hour, when GitHub's scheduler is least backed up. Runs can
+# still start hours late; the script won't post during quiet hours (11 PM–6 AM Central).
 on:
   schedule:
-    # Daily at 6PM UTC (~1PM Central). Posts a GroupMe reminder when a round is tomorrow.
-    - cron: '0 18 * * *'
-    # Daily at 2AM UTC (~9PM Central). Posts the RSVP list if it changed since the last one.
-    - cron: '0 2 * * *'
+    # Daily at 6:13PM UTC (~1PM Central). Posts a GroupMe reminder when a round is tomorrow.
+    - cron: '13 18 * * *'
+    # Daily at 2:17AM UTC (~9PM Central). Posts the RSVP list if it changed since the last one.
+    - cron: '17 2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -23,5 +25,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          MODE: ${{ github.event.schedule == '0 2 * * *' && 'evening' || 'reminder' }}
+          MODE: ${{ github.event.schedule == '17 2 * * *' && 'evening' || 'reminder' }}
         run: node scripts/send-reminders.js
