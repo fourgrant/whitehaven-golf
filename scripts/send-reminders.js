@@ -5,7 +5,8 @@
    league GroupMe with who's in so far. With MODE=evening, she
    posts the RSVP list instead — only if it changed since the
    last list. The messages are built by the groupme-post edge
-   function.
+   function. Nothing is posted in quiet hours (11 PM–6 AM
+   Central) — GitHub sometimes runs a scheduled job hours late.
    Pure Node — no npm deps (uses built-in https).
    ============================================================ */
 
@@ -50,8 +51,27 @@ function supabase(method, path, body) {
   }, body);
 }
 
+// ===== CENTRAL TIME =====
+// The league runs on Central time whatever zone the runner is in.
+const TZ = 'America/Chicago';
+const QUIET_START = 23, QUIET_END = 6; // keep in step with _shared/groupme.ts
+
+function centralParts(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false,
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t).value;
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, hour: Number(get('hour')) % 24 };
+}
+
 // ===== MAIN =====
 async function main() {
+  const now = centralParts();
+  if (now.hour >= QUIET_START || now.hour < QUIET_END) {
+    console.log(`Quiet hours (${now.hour}:00 Central) — not posting.`);
+    return;
+  }
+
   if (process.env.MODE === 'evening') {
     const res = await supabase('POST', '/functions/v1/groupme-post', { kind: 'evening_list' });
     if (res.status !== 200) {
@@ -62,9 +82,9 @@ async function main() {
     return;
   }
 
-  // Tomorrow's date in YYYY-MM-DD
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // Tomorrow's date in Central time, YYYY-MM-DD
+  const tomorrow = new Date(now.date + 'T12:00:00Z');
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
   console.log(`Looking for rounds on ${tomorrowStr}…`);

@@ -190,6 +190,15 @@ export async function saveListSig(db: SupabaseClient, round: Round, rsvps: Rsvp[
 // RSVPs close at tee time, 9 AM Central on round day, matching rsvp.js. Keeping
 // them open that morning lets late drop-outs say "out".
 export const RSVP_CLOSE = "09:00:00";
+
+// Quiet hours: 11 PM–6 AM Central. Sheila still answers people who ask her
+// something, but nothing scheduled or announced goes out overnight. Kept in
+// step with QUIET_START/QUIET_END in scripts/send-reminders.js.
+export const QUIET_START = 23, QUIET_END = 6;
+export function quietHours(): boolean {
+  const hour = Number(nowCentral().slice(11, 13));
+  return hour >= QUIET_START || hour < QUIET_END;
+}
 export function rsvpsClosed(round: Round): boolean {
   return nowCentral() >= `${round.date} ${RSVP_CLOSE}`;
 }
