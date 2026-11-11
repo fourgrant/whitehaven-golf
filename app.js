@@ -2563,6 +2563,73 @@ async function renderLastRoundCallout() {
   `;
 }
 
+// ===== NEXT ROUND (public) =====
+// The open round that's coming up: date, 9 AM tee time, lead commish, and who's
+// RSVP'd. "In" is A–Z like the RSVP card; the waitlist stays in queue order.
+const TEE_TIME = '9:00 AM';
+
+async function renderNextRoundCallout() {
+  const el = document.getElementById('next-round-callout');
+  if (!el || !db) return;
+
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+  const { data: round } = await db.from('rounds')
+    .select('id, date, course, max_players, lead_commish:players!lead_commish_id(name)')
+    .in('status', ['setup', 'in_progress'])
+    .gte('date', today)
+    .order('date', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!round) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  const { data: rsvps } = await db.from('rsvps')
+    .select('name, waitlisted, created_at')
+    .eq('round_id', round.id)
+    .order('created_at');
+
+  const ins  = (rsvps || []).filter(r => !r.waitlisted).sort((a, b) => a.name.localeCompare(b.name));
+  const wait = (rsvps || []).filter(r => r.waitlisted);
+  const cap  = round.max_players;
+
+  const dateObj  = new Date(round.date + 'T12:00:00');
+  const weekday  = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateLong = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const commish  = round.lead_commish?.name;
+
+  const chip = name => `<span style="display:inline-block;background:var(--warm-white);border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:13px;margin:0 6px 6px 0;">${escHtml(name)}</span>`;
+  const label = text => `<div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin:14px 0 8px;">${text}</div>`;
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="card" style="border:2px solid var(--gold);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">
+            🗓️ Next Round
+          </div>
+          <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--green);line-height:1.2;">
+            ${weekday}, ${dateLong}
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);margin-top:4px;">
+            ${TEE_TIME} tee time · ${escHtml(round.course || 'Whitehaven')}
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Commish: <strong style="color:var(--text);">${commish ? escHtml(commish) : 'TBD'}</strong></div>
+        </div>
+        <a href="rsvp.html?round=${round.id}"
+          style="background:var(--green);color:var(--gold-light);border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px;text-decoration:none;white-space:nowrap;">
+          RSVP →
+        </a>
+      </div>
+      ${label(`In · ${ins.length}${cap ? `/${cap}` : ''}${cap && ins.length >= cap ? ' · full' : ''}`)}
+      ${ins.length
+        ? `<div>${ins.map(r => chip(r.name)).join('')}</div>`
+        : `<div style="font-size:13px;color:var(--text-muted);">Nobody's in yet. Be the first.</div>`}
+      ${wait.length ? `${label(`⏳ Waitlist · ${wait.length}`)}<div>${wait.map((r, i) => chip(`${i + 1}. ${r.name}`)).join('')}</div>` : ''}
+    </div>
+  `;
+}
+
 function openLastRound(roundId) {
   _pendingRoundOpen = roundId;
   showPage('history');
@@ -2626,6 +2693,7 @@ async function renderStats(filter) {
       })()
     ]);
     state.rankChanges = computeRankChanges(state.players, lastRoundScores);
+    renderNextRoundCallout(); // fire async, don't await
     renderLastRoundCallout(); // fire async, don't await
     renderSuperlatives();     // fire async, don't await — loads independently
     renderWhosHot();          // Trophy Case shelf (public) — loads from season ledger
