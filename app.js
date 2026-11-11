@@ -2616,10 +2616,9 @@ async function renderNextRoundCallout() {
           </div>
           <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Commish: <strong style="color:var(--text);">${commish ? escHtml(commish) : 'TBD'}</strong></div>
         </div>
-        <a href="rsvp.html?round=${round.id}"
-          style="background:var(--green);color:var(--gold-light);border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px;text-decoration:none;white-space:nowrap;">
-          RSVP →
-        </a>
+        <div style="background:var(--green);color:var(--gold-light);border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px;white-space:nowrap;">
+          RSVP on the GroupMe
+        </div>
       </div>
       ${label(`In · ${ins.length}${cap ? `/${cap}` : ''}${cap && ins.length >= cap ? ' · full' : ''}`)}
       ${ins.length
