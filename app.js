@@ -2025,8 +2025,9 @@ async function renderSuperlatives() {
   const yearStart = `${year}-01-01`;
 
   const { data: yearRounds } = await db.from('rounds')
-    .select('id').eq('status', 'complete').gte('date', yearStart);
+    .select('id, buyin_per_player').eq('status', 'complete').gte('date', yearStart);
   const roundIds = (yearRounds || []).map(r => r.id);
+  const buyinByRound = new Map((yearRounds || []).map(r => [r.id, parseFloat(r.buyin_per_player) || 12]));
 
   if (!roundIds.length) {
     grid.innerHTML = `<p style="font-size:13px;color:var(--text-muted);padding:8px 0;grid-column:1/-1;">No rounds completed yet in ${year}.</p>`;
@@ -2040,7 +2041,7 @@ async function renderSuperlatives() {
     { data: rpCtps },
   ] = await Promise.all([
     db.from('round_players').select('score, player_id, players(name)').in('round_id', roundIds).not('score', 'is', null),
-    db.from('round_results').select('player_id, total_winnings, team_winnings, players(name)').in('round_id', roundIds),
+    db.from('round_results').select('round_id, player_id, total_winnings, team_winnings, players(name)').in('round_id', roundIds),
     db.from('round_players').select('player_id, holes_won, players(name)').in('round_id', roundIds),
     db.from('round_players').select('player_id, cth_count, players(name)').in('round_id', roundIds),
   ]);
@@ -2050,11 +2051,12 @@ async function renderSuperlatives() {
   allScores.sort((a, b) => a.score - b.score);
   const bestRoundPodium = buildPodium(allScores, p => p.score, true); // ascending
 
-  // Most money
+  // Most money — gross winnings; buy-ins tracked so commish sees net (matches The Bank)
   const moneyMap = {};
   (results || []).forEach(r => {
-    if (!moneyMap[r.player_id]) moneyMap[r.player_id] = { name: r.players?.name, total: 0 };
+    if (!moneyMap[r.player_id]) moneyMap[r.player_id] = { name: r.players?.name, total: 0, buyin: 0 };
     moneyMap[r.player_id].total += parseFloat(r.total_winnings || 0);
+    moneyMap[r.player_id].buyin += buyinByRound.get(r.round_id) || 12;
   });
   const moneySorted = Object.values(moneyMap).sort((a, b) => b.total - a.total);
   const moneyPodium = buildPodium(moneySorted, p => p.total);
@@ -2090,7 +2092,8 @@ async function renderSuperlatives() {
 
   grid.innerHTML = [
     podiumTile('🏌️', 'Best Round',     bestRoundPodium, p => p.score, { winnersOnly: true }),
-    podiumTile('💰', 'Most Winnings',  moneyPodium,     p => `$${p.total.toFixed(2)}`),
+    podiumTile('💰', 'Most Winnings',  moneyPodium,     p => `$${p.total.toFixed(2)}`,
+      { commishNote: p => `Net ${fmtSignedMoney(p.total - p.buyin)}` }),
     podiumTile('🏆', 'Most Wins',      winsPodium,      p => `${p.total} win${p.total !== 1 ? 's' : ''}`),
     podiumTile('🦴', 'Most Skins',     skinsPodium,     p => `${p.total} skin${p.total !== 1 ? 's' : ''}`),
     podiumTile('📍', 'Most CTPs',      ctpPodium,       p => `${p.total} CTP${p.total !== 1 ? 's' : ''}`),
@@ -2139,7 +2142,7 @@ function podiumTile(icon, label, places, formatVal, opts = {}) {
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-top:5px;">
         <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0;">${num}</span>
         <span style="font-size:12px;color:var(--text-muted);flex:1;min-width:0;margin-left:4px;line-height:1.4;">${pname}</span>
-        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);flex-shrink:0;">${formatVal(p.raw)}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);flex-shrink:0;text-align:right;">${formatVal(p.raw)}${opts.commishNote ? `<span class="commish-only" style="font-size:10px;color:var(--text-muted);">${opts.commishNote(p.raw)}</span>` : ''}</span>
       </div>
     `;
   }).join('');
@@ -2161,6 +2164,7 @@ function podiumTile(icon, label, places, formatVal, opts = {}) {
       <div class="superlative-label">${label}</div>
       <div class="superlative-name">${firstName}</div>
       <div class="superlative-value">${formatVal(first.raw)}</div>
+      ${opts.commishNote ? `<div class="commish-only" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:2px;">${opts.commishNote(first.raw)}</div>` : ''}
       ${moreSection}
     </div>
   `;
