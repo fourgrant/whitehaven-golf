@@ -665,6 +665,7 @@
       <h2>🔥 What Else Is on the Stats Tab</h2>
       <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">Beyond the leaderboard and Season Awards, the Stats tab has more sections that update automatically as you finalize rounds — nothing to manage.</p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
+        <li><strong>🗓️ Next Round (public)</strong>: a card at the top of the Stats tab whenever a round is open. It shows the date, the 9 AM tee time, the course, the commish, and everyone who's RSVP'd (A–Z, plus any waitlist), with an RSVP button. The commish comes from the <em>Lead Commish</em> picker on the Round tab; if nobody's picked, it says TBD. The card goes away once the round is finalized.</li>
         <li><strong>Who's Hot (public)</strong> — highlights players on an active win streak (won their last 2+ rounds), then fills in with the season's standout feats (big skins rounds, both CTPs in a day, biggest comebacks). Tap a tile to open that player.</li>
         <li><strong>Trophy Case (public, in the player popup)</strong> — tapping any player's name shows the badges they've earned (On Fire, Skins Machine, Pin Seeker, Comeback Kid, Iron Man).</li>
         <li><strong>💰 The Bank — Money Race (commissioners only)</strong> — a card that appears on the Stats tab only when you're signed in as commish. It ranks everyone by <strong>net</strong> for the year (winnings minus buy-ins; green = up, red = down) and shows the biggest single-round payout. It's a handy gut-check when balancing teams, and it stays hidden from the public view. The <strong>Most Winnings</strong> tile in the 2026 Leaderboard is <strong>gross</strong> winnings; signed-in commishes also see a small <em>Net</em> line under each name there that matches The Bank. Signed-in commishes also see each player's <strong>Bankroll</strong> (net + sparkline) and a <em>Bankrupt</em> badge in the player popup.</li>
@@ -744,6 +745,19 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.16</span>
+          <span class="release-date">November 11, 2026</span>
+        </div>
+        <h3>Next Round Card on the Stats Tab</h3>
+        <ul class="release-list">
+          <li><strong>Anyone can see the next round.</strong> When a round is open, the Stats tab shows a card above Last Round with the date, 9 AM tee time, course, commish, and who's in (A–Z, out of the cap). A waitlist shows below in queue order.</li>
+          <li>An <strong>RSVP →</strong> button opens the RSVP page for that round.</li>
+          <li>Pick the commish on the Round tab. Until then the card says <em>Commish: TBD</em>.</li>
+        </ul>
+      </div>
+
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.15</span>
@@ -1093,6 +1107,9 @@
       <h1>Player Stats</h1>
       <p>Scoring averages sorted best to worst. Click any player for their full history.</p>
     </div>
+
+    <!-- Next (open) round: date, tee time, commish, who's in -->
+    <div id="next-round-callout" style="display:none;"></div>
 
     <!-- Upcoming round callout -->
     <div id="upcoming-callout" style="display:none;"></div>
