@@ -11,7 +11,7 @@
 //   in as <roster name>                        → RSVP, and remember which player you are
 //   in as new                                  → first-timer: add to the roster under their GroupMe name, then RSVP
 //   out / I'm out. Working                     → drop your RSVP
-//   who's in                                   → post the current list
+//   who's in                                   → post the current list + commish and Venmo
 //
 // Sheila keeps quiet when things go right: no reply to a plain "in" or "out".
 // She speaks up only when someone needs to act — an unknown name, RSVPs
@@ -31,7 +31,7 @@
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
-  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, fmtDate, msgRsvpList, Round,
+  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, fmtDate, msgRsvpList, commishLine, Round,
   inList, waitList, promoteFromWaitlist, postPromoted, tagged,
 } from "../_shared/groupme.ts";
 import { parseRsvp, findPlayer, isSender, Parsed } from "../_shared/rsvp-parse.ts";
@@ -78,7 +78,7 @@ async function handle(db: SupabaseClient, msg: { name: string; user_id: string }
   }
 
   if (cmd.kind === "who") {
-    await postToGroup(msgRsvpList(round, await getRsvps(db, round.id)));
+    await postToGroup(msgRsvpList(round, await getRsvps(db, round.id)) + `\n\n` + commishLine(round));
     return;
   }
 
