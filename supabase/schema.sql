@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS players (
   email         text,
   phone         text,
   groupme_user_id text UNIQUE,          -- set the first time Sheila matches a GroupMe sender to this player
+  is_commish    boolean NOT NULL DEFAULT false, -- listed in the Lead Commish dropdown
+  venmo         text,                  -- Venmo handle without the @; Sheila posts it as "who to pay"
   base_avg      numeric,               -- DEPRECATED: historical-baseline blend removed; averages come from finalized app rounds only
   base_rounds   integer NOT NULL DEFAULT 0, -- DEPRECATED: see base_avg
   created_at    timestamptz DEFAULT now()
@@ -193,6 +195,10 @@ CREATE INDEX IF NOT EXISTS idx_rsvps_round_id ON rsvps(round_id);
 -- ALTER TABLE rsvps DROP CONSTRAINT IF EXISTS rsvps_round_id_email_key;
 -- ALTER TABLE rsvps ADD CONSTRAINT rsvps_round_id_player_id_key UNIQUE (round_id, player_id);
 -- ALTER TABLE players ADD COLUMN IF NOT EXISTS groupme_user_id text UNIQUE;
+--
+-- MIGRATION (2026-11-22): commish list + Venmo
+-- ALTER TABLE players ADD COLUMN IF NOT EXISTS is_commish boolean NOT NULL DEFAULT false;
+-- ALTER TABLE players ADD COLUMN IF NOT EXISTS venmo text;
 --
 -- MIGRATION (2026-10-25): RSVP cap + waitlist
 -- ALTER TABLE rounds ADD COLUMN IF NOT EXISTS max_players int DEFAULT 24;

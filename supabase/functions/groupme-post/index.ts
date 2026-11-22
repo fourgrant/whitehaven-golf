@@ -8,7 +8,7 @@
 //   supabase secrets set GROUPME_BOT_ID=...
 //   supabase functions deploy groupme-post
 //
-// Request  (POST, JSON): { kind: "rsvp_open"|"rsvp_list"|"reminder"|"teams"|"results", round_id: uuid }
+// Request  (POST, JSON): { kind: "rsvp_open"|"rsvp_list"|"reminder"|"teams"|"results"|"commish", round_id: uuid }
 //                        { kind: "evening_list" }  — the open round's list, only if it changed since the last list
 //                        { kind: "promote", round_id, rsvp_id? } — move people up from the waitlist and tag them
 // Response (200,  JSON): { ok: true, text: string } or { ok: true, skipped: reason }
@@ -16,7 +16,7 @@
 
 import {
   adminClient, getRound, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, listSig, saveListSig,
-  promoteFromWaitlist, postPromoted, msgRsvpOpen, msgRsvpList, msgReminder, msgTeams, msgResults,
+  promoteFromWaitlist, postPromoted, msgRsvpOpen, msgCommish, msgRsvpList, msgReminder, msgTeams, msgResults,
 } from "../_shared/groupme.ts";
 
 const CORS = {
@@ -81,9 +81,11 @@ Deno.serve(async (req) => {
       case "reminder":  text = msgReminder(round, await getRsvps(db, round.id)); break;
       case "teams":     text = await msgTeams(db, round); break;
       case "results":   text = await msgResults(db, round); break;
+      case "commish":   text = msgCommish(round); break;
       default: return json({ error: `Unknown kind: ${kind}` }, 400);
     }
-    if (!text) return json({ error: kind === "teams" ? "No teams assigned yet" : "No results saved for this round" }, 409);
+    if (!text) return json({ error: kind === "teams" ? "No teams assigned yet"
+      : kind === "commish" ? "No commish set for this round" : "No results saved for this round" }, 409);
 
     await postToGroup(text);
     if (kind === "rsvp_list" || kind === "reminder") await saveListSig(db, round, await getRsvps(db, round.id));

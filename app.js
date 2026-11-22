@@ -476,12 +476,15 @@ function renderRoundPage() {
   const today = new Date().toISOString().split('T')[0];
   const r = state.currentRound;
 
+  // Only players marked as commish (Players tab → Edit) — plus whoever is already
+  // set on this round, so an edit never silently drops them.
   const sel = document.getElementById('round-commish');
+  const curCommish = r && r.status !== 'complete' ? r.lead_commish_id : null;
   sel.innerHTML = '<option value="">— Select commish</option>' +
-    [...state.players]
-      .filter(p => p.active !== false)
+    state.players
+      .filter(p => p.is_commish || p.id === curCommish)
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(p => `<option value="${p.id}">${p.name}</option>`)
+      .map(p => `<option value="${p.id}">${escHtml(p.name)}${venmoHandle(p.venmo) ? ` · @${escHtml(venmoHandle(p.venmo))}` : ''}</option>`)
       .join('');
 
   if (r && r.status !== 'complete') {
@@ -541,6 +544,7 @@ async function saveRound() {
 
   let result;
   const isNew = !(state.currentRound && state.currentRound.status !== 'complete');
+  const prevCommish = isNew ? null : (state.currentRound.lead_commish_id || null);
   if (!isNew) {
     result = await db.from('rounds').update(roundData).eq('id', state.currentRound.id).select().single();
   } else {
@@ -560,6 +564,11 @@ async function saveRound() {
   } else if (!isNew) {
     // A raised cap opens spots: move people up from the waitlist (Sheila tags them).
     promoteWaitlist(result.data.id);
+    // Commish set or changed on an upcoming round: tell the chat who to pay.
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+    if (roundData.lead_commish_id && roundData.lead_commish_id !== prevCommish && roundData.date >= today) {
+      postToGroupMe('commish', result.data.id, 'Commish update posted to GroupMe');
+    }
   }
   showPage('teams');
 }
@@ -1205,6 +1214,12 @@ async function addGuest() {
 }
 
 // ===== PASTE LIST =====
+// Venmo handles are stored without the leading @ ("@Robby-Grant" → "Robby-Grant").
+function venmoHandle(h) {
+  const v = String(h ?? '').trim().replace(/^@+/, '').replace(/\s+/g, '');
+  return v || null;
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -2585,7 +2600,7 @@ async function renderNextRoundCallout() {
 
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
   const { data: round } = await db.from('rounds')
-    .select('id, date, course, max_players, lead_commish:players!lead_commish_id(name)')
+    .select('id, date, course, max_players, lead_commish:players!lead_commish_id(name, venmo)')
     .in('status', ['setup', 'in_progress'])
     .gte('date', today)
     .order('date', { ascending: true })
@@ -2625,7 +2640,7 @@ async function renderNextRoundCallout() {
           <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text);margin-top:4px;">
             ${TEE_TIME} tee time · ${escHtml(round.course || 'Whitehaven')}
           </div>
-          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Commish: <strong style="color:var(--text);">${commish ? escHtml(commish) : 'TBD'}</strong></div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Commish: <strong style="color:var(--text);">${commish ? escHtml(commish) : 'TBD'}</strong>${venmoHandle(round.lead_commish?.venmo) ? ` · pay on Venmo <a href="https://venmo.com/u/${encodeURIComponent(venmoHandle(round.lead_commish.venmo))}" target="_blank" rel="noopener" style="color:var(--green);font-family:'DM Mono',monospace;">@${escHtml(venmoHandle(round.lead_commish.venmo))}</a>` : ''}</div>
         </div>
         <div style="background:var(--green);color:var(--gold-light);border-radius:8px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px;white-space:nowrap;">
           RSVP on the GroupMe
@@ -3009,13 +3024,14 @@ function renderPlayersAdmin() {
       const offset = state.activityData.playerActivity.get(p.id);
       meta += offset === undefined ? ' · never played' : ` · last played ${offset} rounds ago`;
     }
-    const contactLine = (p.email || p.phone)
-      ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone].filter(Boolean).map(escHtml).join(' · ')}</div>`
+    const venmo = venmoHandle(p.venmo) ? 'Venmo @' + venmoHandle(p.venmo) : null;
+    const contactLine = (p.email || p.phone || venmo)
+      ? `<div class="player-admin-meta" style="margin-top:2px;">${[p.email, p.phone, venmo].filter(Boolean).map(escHtml).join(' · ')}</div>`
       : '';
     return `
       <div class="player-admin-row${isActive ? '' : ' player-inactive'}">
         <div style="flex:1;min-width:0;">
-          <div class="player-admin-name">${escHtml(p.name)}</div>
+          <div class="player-admin-name">${escHtml(p.name)}${p.is_commish ? ` <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);">Commish</span>` : ''}</div>
           <div class="player-admin-meta">${meta}</div>
           ${contactLine}
         </div>
@@ -3035,6 +3051,12 @@ function renderPlayersAdmin() {
             style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
           <input type="tel" id="edit-phone-${p.id}" value="${escHtml(p.phone || '')}" placeholder="Phone"
             style="flex:1;min-width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+          <input type="text" id="edit-venmo-${p.id}" value="${escHtml(venmoHandle(p.venmo) ? '@' + venmoHandle(p.venmo) : '')}" placeholder="Venmo (@handle)"
+            style="flex:1;min-width:150px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--warm-white);">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;flex:1 1 100%;">
+            <input type="checkbox" id="edit-commish-${p.id}" ${p.is_commish ? 'checked' : ''}>
+            Commish (shows in the Lead Commish dropdown)
+          </label>
           <button class="btn btn-primary btn-sm" onclick="savePlayerEdit('${p.id}')">Save</button>
           <button class="btn btn-outline btn-sm" onclick="togglePlayerEdit('${p.id}')">Cancel</button>
         </div>
@@ -3093,12 +3115,14 @@ async function savePlayerEdit(playerId) {
   const name  = document.getElementById('edit-name-' + playerId)?.value.replace(/\s+/g, ' ').trim();
   const email = document.getElementById('edit-email-' + playerId)?.value.trim() || null;
   const phone = document.getElementById('edit-phone-' + playerId)?.value.trim() || null;
+  const venmo = venmoHandle(document.getElementById('edit-venmo-' + playerId)?.value);
+  const is_commish = !!document.getElementById('edit-commish-' + playerId)?.checked;
   if (!db) return;
   if (!name) { toast('Name can\'t be blank.'); return; }
   const p = state.players.find(p => p.id === playerId);
   const renamed = p && p.name !== name;
 
-  const { error } = await db.from('players').update({ name, email, phone }).eq('id', playerId);
+  const { error } = await db.from('players').update({ name, email, phone, venmo, is_commish }).eq('id', playerId);
   if (error) {
     toast(error.code === '23505' ? `"${name}" is already on the roster.` : 'Error: ' + error.message);
     return;
@@ -3106,7 +3130,7 @@ async function savePlayerEdit(playerId) {
   // RSVP rows keep a copy of the name for the list; keep it in step.
   if (renamed) await db.from('rsvps').update({ name }).eq('player_id', playerId);
 
-  if (p) { p.name = name; p.email = email; p.phone = phone; }
+  if (p) Object.assign(p, { name, email, phone, venmo, is_commish });
   state.activityData = null;
   state.seasonLedger = null;
   toast(renamed ? `Renamed to ${name}.` : 'Player saved.');

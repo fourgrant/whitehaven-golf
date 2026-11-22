@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Sheila">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=aecf7a45">
+  <link rel="stylesheet" href="style.css?v=23a3fff8">
 </head>
 <body>
 
@@ -161,6 +161,9 @@
           <select id="round-commish">
             <option value="">— Select commish</option>
           </select>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;">
+            Sheila tells the GroupMe who to pay (with their Venmo). Changing the commish later posts an update. Add commishes and Venmos on the Players tab → Edit.
+          </div>
         </div>
         <div class="form-group">
           <label>Buy-in per player ($)</label>
@@ -434,7 +437,8 @@
       <h2>📋 Step 0 — Open RSVPs in GroupMe</h2>
       <div class="section-label" style="margin-top:0;">Before round day</div>
       <ol style="padding-left:20px;font-size:14px;line-height:2;">
-        <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link.</li>
+        <li>Go to the <strong>Round</strong> tab and save a new round (date, course, buy-in, Lead Commish). <strong>Sheila posts the announcement to the league GroupMe automatically</strong>, with the RSVP link and who to pay: <em>💸 Pay Benton: Venmo @bentonpratt4</em>. The day-before reminder repeats the pay line.</li>
+        <li><strong>Lead Commish</strong> — the dropdown lists only players marked as commish, each with their Venmo. If the commish changes mid-week (or you pick one after the round is posted), save the round and Sheila posts a <em>🔄 Commish update</em> to the GroupMe with the new person to pay. Add a commish or fix a Venmo on the Players tab: tap <em>Edit</em>, tick <em>Commish</em>, and fill in <em>Venmo</em>.</li>
         <li>Players RSVP by replying <strong>in</strong> in the chat (or <strong>out</strong> to drop). <strong>Sheila stays quiet when things go right</strong>: she doesn't reply to every "in". She only speaks up for an unknown name, RSVPs closed, the game filling up, the waitlist, or a spot opening. Every evening around 9 PM she posts the list, but only if it changed that day. Anyone can reply <strong>who's in</strong> to get the list.</li>
         <li><strong>Quiet hours, 11 PM–6 AM Central.</strong> Overnight Sheila posts nothing on her own: no nightly list, no reminder, no "spot opened" tag. If the 9 PM job runs late and lands in quiet hours, it's skipped, and the next evening's list catches up. She still answers anyone who messages her overnight (<em>who's in</em>, an unknown name, the waitlist). A waitlisted player who moves up overnight still gets the spot. They just aren't tagged, and they'll show on the next evening list. Commish buttons like 📣 Post List work at any hour.</li>
         <li><strong>Max players</strong> (Round tab, default 24) caps the game. Once it's full, Sheila posts "🔒 we're full", and later "in" replies go on a <strong>waitlist</strong>. When someone says "out", the next person on the waitlist moves up automatically and Sheila tags them in GroupMe. Raising the cap moves people up too.</li>
@@ -640,6 +644,7 @@
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
         <li><strong>Finding a player</strong> — the list is alphabetical in three groups: <strong>Recent Players</strong> (played in the last 8 rounds) at the top, then <strong>Other Players</strong> (on the roster but not recent, with when they last played) and <strong>Deactivated</strong>, both collapsed until you tap them. Searching opens any group with a match.</li>
         <li><strong>Add player</strong> — type their name and click Add. They'll appear at check-in immediately.</li>
+        <li><strong>Commishes and Venmo</strong> — in <em>Edit</em>, tick <em>Commish</em> to put anyone on the roster in the Round tab's Lead Commish dropdown, and type their Venmo handle (with or without the @). Commishes show a gold <em>Commish</em> tag in the list. The Venmo is what Sheila posts as who to pay.</li>
         <li><strong>Edit a player</strong> — click <em>Edit</em> to change their name (e.g. "Andy" → "Andy B.") or their email and phone. Renaming is safe: scores, averages, winnings and past rounds are tied to the player, not the name, so the new name shows up everywhere, History included. A fuller name also helps Sheila match people in GroupMe.</li>
         <li><strong>Deactivate</strong> — players sitting out the season can be deactivated so they don't clutter the check-in list. Their history and averages are preserved.</li>
         <li><strong>Reactivate</strong> — bring them back at any time with one click.</li>
@@ -665,7 +670,7 @@
       <h2>🔥 What Else Is on the Stats Tab</h2>
       <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">Beyond the leaderboard and Season Awards, the Stats tab has more sections that update automatically as you finalize rounds — nothing to manage.</p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;">
-        <li><strong>🗓️ Next Round (public)</strong>: a card at the top of the Stats tab whenever a round is open. It shows the date, the 9 AM tee time, the course, the commish, and everyone who's RSVP'd (A–Z, plus any waitlist). It tells people to RSVP on the GroupMe and doesn't link to the RSVP page, since the Stats tab is public. The commish comes from the <em>Lead Commish</em> picker on the Round tab; if nobody's picked, it says TBD. The card goes away once the round is finalized.</li>
+        <li><strong>🗓️ Next Round (public)</strong>: a card at the top of the Stats tab whenever a round is open. It shows the date, the 9 AM tee time, the course, the commish, and everyone who's RSVP'd (A–Z, plus any waitlist). It tells people to RSVP on the GroupMe and doesn't link to the RSVP page, since the Stats tab is public. The commish comes from the <em>Lead Commish</em> picker on the Round tab; if nobody's picked, it says TBD. When the commish has a Venmo, the card shows it as a link to pay. The card goes away once the round is finalized.</li>
         <li><strong>Who's Hot (public)</strong> — highlights players on an active win streak (won their last 2+ rounds), then fills in with the season's standout feats (big skins rounds, both CTPs in a day, biggest comebacks). Tap a tile to open that player.</li>
         <li><strong>Trophy Case (public, in the player popup)</strong> — tapping any player's name shows the badges they've earned (On Fire, Skins Machine, Pin Seeker, Comeback Kid, Iron Man).</li>
         <li><strong>💰 The Bank — Money Race (commissioners only)</strong> — a card that appears on the Stats tab only when you're signed in as commish. It ranks everyone by <strong>net</strong> for the year (winnings minus buy-ins; green = up, red = down) and shows the biggest single-round payout. It's a handy gut-check when balancing teams, and it stays hidden from the public view. The <strong>Most Winnings</strong> tile in the 2026 Leaderboard is <strong>gross</strong> winnings; signed-in commishes also see a small <em>Net</em> line under each name there that matches The Bank. Signed-in commishes also see each player's <strong>Bankroll</strong> (net + sparkline) and a <em>Bankrupt</em> badge in the player popup.</li>
@@ -745,6 +750,20 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.18</span>
+          <span class="release-date">November 22, 2026</span>
+        </div>
+        <h3>Commish List and Who to Pay</h3>
+        <ul class="release-list">
+          <li><strong>Lead Commish dropdown shows only commishes.</strong> Benton, Bill S., Dick H., Joe Jones, Robby G. and Will Goodwin, each with their Venmo. Make anyone on the roster a commish on the Players tab (Edit → Commish).</li>
+          <li><strong>Venmo on the Players tab.</strong> Edit any player to add or change their Venmo handle.</li>
+          <li><strong>Sheila says who to pay.</strong> The RSVP announcement and the day-before reminder end with <em>💸 Pay Benton: Venmo @bentonpratt4</em>. The Next Round card on the Stats tab links the commish's Venmo too.</li>
+          <li><strong>Commish changes reach the chat.</strong> Change the Lead Commish on an upcoming round, save, and Sheila posts a <em>🔄 Commish update</em> with the new person to pay.</li>
+        </ul>
+      </div>
+
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.17</span>
@@ -1178,10 +1197,10 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=aecf7a45"></script>
+<script src="config.js?v=23a3fff8"></script>
 <!-- App logic -->
-<script src="app.js?v=aecf7a45"></script>
-<script src="scorecard.js?v=aecf7a45"></script>
+<script src="app.js?v=23a3fff8"></script>
+<script src="scorecard.js?v=23a3fff8"></script>
 
 </body>
 </html>
