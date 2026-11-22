@@ -105,7 +105,11 @@ export type Round = {
   id: string; date: string; course: string; buyin_per_player: number; status: string;
   team_scores: Record<string, number> | null; round_state: Record<string, any> | null;
   max_players: number | null; rsvp_list_sig: string | null;
+  lead_commish: { name: string; venmo: string | null } | null;
 };
+
+// Rounds come with the lead commish's name and Venmo, for the "who to pay" line.
+const ROUND_SELECT = "*, lead_commish:players!lead_commish_id(name, venmo)";
 
 export type Rsvp = {
   id: string; name: string; player_id: string | null; waitlisted: boolean; created_at: string;
@@ -113,13 +117,13 @@ export type Rsvp = {
 };
 
 export async function getRound(db: SupabaseClient, roundId: string): Promise<Round | null> {
-  const { data } = await db.from("rounds").select("*").eq("id", roundId).maybeSingle();
+  const { data } = await db.from("rounds").select(ROUND_SELECT).eq("id", roundId).maybeSingle();
   return data;
 }
 
 // The round people are RSVPing for: the next one that isn't finished.
 export async function getOpenRound(db: SupabaseClient): Promise<Round | null> {
-  const { data } = await db.from("rounds").select("*")
+  const { data } = await db.from("rounds").select(ROUND_SELECT)
     .neq("status", "complete").gte("date", todayCentral())
     .order("date").limit(1);
   return data?.[0] ?? null;
@@ -208,13 +212,37 @@ export function rsvpLink(round: Round): string {
   return `${SITE_URL}/rsvp.html?round=${round.id}`;
 }
 
+// "💸 Pay Benton: Venmo @bentonpratt4" — null until the round has a commish.
+export function venmoHandle(h: string | null | undefined): string | null {
+  const v = String(h ?? "").trim().replace(/^@+/, "");
+  return v || null;
+}
+export function payLine(round: Round): string | null {
+  const c = round.lead_commish;
+  if (!c?.name) return null;
+  const v = venmoHandle(c.venmo);
+  return v ? `💸 Pay ${c.name}: Venmo @${v} (venmo.com/u/${v})` : `💸 Pay ${c.name} this week.`;
+}
+
 export function msgRsvpOpen(round: Round): string {
+  const pay = payLine(round);
   return [
     `⛳ RSVPs are open for ${fmtDate(round.date)} at ${round.course} — $${round.buyin_per_player} all-in.` +
       (round.max_players != null ? ` Capped at ${round.max_players}; after that it's a waitlist.` : ``),
+    ...(pay ? [``, pay] : []),
     ``,
     `Reply "in" right here to RSVP (or "out" to drop). Or use the link:`,
     rsvpLink(round),
+  ].join("\n");
+}
+
+// Posted when the commish for an upcoming round is set or changes mid-week.
+export function msgCommish(round: Round): string | null {
+  const pay = payLine(round);
+  if (!pay) return null;
+  return [
+    `🔄 Commish update for ${fmtDate(round.date)}: ${round.lead_commish!.name} is running it.`,
+    pay,
   ].join("\n");
 }
 
@@ -257,6 +285,8 @@ export function msgReminder(round: Round, rsvps: Rsvp[]): string {
   lines.push(``, isFull(round, rsvps)
     ? `We're full — reply "in" for the waitlist, or "out" by 9 AM tomorrow if you can't make it.`
     : `Reply "in" or "out" by 9 AM tomorrow — that's when RSVPs close.`);
+  const pay = payLine(round);
+  if (pay) lines.push(``, pay);
   return lines.join("\n");
 }
 
