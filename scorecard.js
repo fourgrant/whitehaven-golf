@@ -309,8 +309,13 @@ function scSuggestSkins() {
 // ---------- review UI ----------
 
 function scPlayerOptions(row) {
-  const active   = state.players.filter(p => p.active !== false);
-  const inactive = state.players.filter(p => p.active === false);
+  // Regulars (played in the last 8 rounds) first, then the rest of the roster,
+  // then deactivated players; alphabetical within each group.
+  const byName   = (a, b) => a.name.localeCompare(b.name);
+  const rostered = state.players.filter(p => p.active !== false);
+  const regulars = rostered.filter(p => !isInactivePlayer(p.id)).sort(byName);
+  const others   = rostered.filter(p =>  isInactivePlayer(p.id)).sort(byName);
+  const inactive = state.players.filter(p => p.active === false).sort(byName);
   const opt = p => `<option value="${escHtml(p.id)}" ${row.playerId === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`;
   const top = row.ambiguous.length
     ? `<optgroup label="Could be">${row.ambiguous.map(opt).join('')}</optgroup>` : '';
@@ -319,7 +324,8 @@ function scPlayerOptions(row) {
     ${top}
     <option value="__guest" ${row.guest ? 'selected' : ''}>＋ Add “${escHtml(row.guestName || row.name)}” as guest</option>
     <option value="__skip"  ${row.skip  ? 'selected' : ''}>Skip this row</option>
-    <optgroup label="Roster">${active.map(opt).join('')}</optgroup>
+    <optgroup label="${others.length ? 'Regulars' : 'Roster'}">${regulars.map(opt).join('')}</optgroup>
+    ${others.length ? `<optgroup label="Rarely play">${others.map(opt).join('')}</optgroup>` : ''}
     ${inactive.length ? `<optgroup label="Inactive">${inactive.map(opt).join('')}</optgroup>` : ''}
   `;
 }
@@ -347,6 +353,8 @@ function scGuestInput(ci, pi, row) {
 function scFmtRel(n) { return n === null || n === undefined ? '—' : (n > 0 ? `+${n}` : n === 0 ? 'E' : `${n}`); }
 
 function scRenderReview() {
+  // The player picker groups by recent play; load that once, then re-render.
+  if (!state.activityData && db) { computeActivityData().then(() => { if (sc.cards?.length) scRenderReviewPreserving(); }); }
   const el = document.getElementById('sc-review');
   const dupes = scDuplicatePlayerIds();
   const letterOptions = card => TEAMS.map(t => `<option value="${t}" ${card.letter === t ? 'selected' : ''}>Team ${t}</option>`).join('');

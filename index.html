@@ -20,7 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Sheila">
   <meta name="theme-color" content="#1a3a2a">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=8d73e2a4">
+  <link rel="stylesheet" href="style.css?v=aecf7a45">
 </head>
 <body>
 
@@ -555,7 +555,7 @@
         Tap <strong>📷 Upload Scorecards</strong> and take a photo of each group's paper card — one photo per card, whole card in frame, roughly straight on. Sheila reads the handwritten names, all nine holes, and the Out column, then shows a <strong>review screen</strong> before anything is saved:
       </p>
       <ul style="padding-left:20px;font-size:14px;line-height:2;margin-bottom:12px;">
-        <li><strong>Names</strong> are matched to the roster. "Stu" finds Stuart, "T$" finds Terrence. A name that fits two players (John, Joe) shows a <em>Which one?</em> pick; an unknown name offers <em>Add as guest</em>. Guests start with today's score as their average.</li>
+        <li><strong>Names</strong> are matched to the roster. To pick a name by hand, the dropdown lists <em>Regulars</em> (played in the last 8 rounds) first, then <em>Rarely play</em>, both A–Z. "Stu" finds Stuart, "T$" finds Terrence. A name that fits two players (John, Joe) shows a <em>Which one?</em> pick; an unknown name offers <em>Add as guest</em>. Guests start with today's score as their average.</li>
         <li><strong>Guest names are editable.</strong> Picking <em>Add as guest</em> opens a name box under the dropdown, prefilled from the card. Use it when a newcomer shares a first name with someone on the roster (a second Andy, say): type a last name or initial and the row shows <em>New player</em>. A name that's already taken is flagged before anything is saved.</li>
         <li><strong>Totals are cross-checked.</strong> If the nine holes don't add up to the number in the Out column, the row is flagged with both numbers and a one-tap <em>use</em> button. Every hole and total is editable right there.</li>
         <li><strong>Team scores are computed</strong> from the holes: best 3 of 4 balls per hole (best 2 of 3 for three-man teams), relative to par, cumulative — the same math as the running row on the card. If the card's handwritten row ends on a different number, you see both and choose.</li>
@@ -586,7 +586,7 @@
 
       <div class="section-label">Skins</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        In the Skins section, use the dropdown for each hole (1–9) to select the hole winner, or leave it as <em>No winner</em>. A skin is only awarded when one player clearly wins the hole outright — ties carry over per your group's rules.
+        In the Skins section, use the dropdown for each hole (1–9) to select the hole winner (players are listed A–Z), or leave it as <em>No winner</em>. A skin is only awarded when one player clearly wins the hole outright — ties carry over per your group's rules.
       </p>
       <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
         If no skins are claimed at all, the full main pool goes to the winning team instead.
@@ -608,7 +608,7 @@
 
       <div class="section-label" style="margin-top:0;">Track cash</div>
       <p style="font-size:14px;line-height:1.7;margin-bottom:12px;">
-        The payout table shows every player's winnings broken out by team win, skins, and CTH. Use the <strong>Paid In</strong> and <strong>Paid Out</strong> checkboxes to track who has settled up as you collect and distribute cash.
+        The payout table shows every player's winnings broken out by team win, skins, and CTH. The pot counts only players who are <strong>on a team</strong>. Someone checked in who no-shows and isn't put on a team doesn't count, and finalizing drops them from the round. Use the <strong>Paid In</strong> and <strong>Paid Out</strong> checkboxes to track who has settled up as you collect and distribute cash.
       </p>
 
       <div class="section-label">Share with the group</div>
@@ -714,7 +714,7 @@
           </tr>
           <tr>
             <td style="font-size:13px;">How much does each CTH winner get?</td>
-            <td style="font-size:13px;color:var(--text-muted);">$1 × number of players checked in, drawn from the $2-per-player CTH pool.</td>
+            <td style="font-size:13px;color:var(--text-muted);">$1 × number of players who played (on a team), drawn from the $2-per-player CTH pool.</td>
           </tr>
           <tr>
             <td style="font-size:13px;">How do I rename a player or update their contact info?</td>
@@ -745,6 +745,19 @@
     </div>
 
     <div class="card">
+      <div class="release-entry">
+        <div class="release-header">
+          <span class="release-version">v2.17</span>
+          <span class="release-date">November 22, 2026</span>
+        </div>
+        <h3>No-Shows Leave the Pot; Easier Pickers</h3>
+        <ul class="release-list">
+          <li><strong>Fix: the pot counts only players on a team.</strong> Someone checked in but left off every team (a no-show) used to count toward the player count and the pot. On 11/22 that showed 20 players and $240 when 19 played. Payouts now use players on a team, and finalizing drops the no-show from the round. The 11/22 results are corrected: $228 pot, $35.63 each for Team C, $47.50 for Lee's skin, $19 per CTH.</li>
+          <li><strong>Skins and CTH dropdowns are A–Z.</strong></li>
+          <li><strong>Scorecard player picker is grouped.</strong> When you fix a name on an uploaded card, the dropdown shows <em>Regulars</em> (played in the last 8 rounds) first, then <em>Rarely play</em>, both A–Z.</li>
+        </ul>
+      </div>
+
       <div class="release-entry">
         <div class="release-header">
           <span class="release-version">v2.16</span>
@@ -1165,10 +1178,10 @@
 <!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Config (gitignored, injected at build time) -->
-<script src="config.js?v=8d73e2a4"></script>
+<script src="config.js?v=aecf7a45"></script>
 <!-- App logic -->
-<script src="app.js?v=8d73e2a4"></script>
-<script src="scorecard.js?v=8d73e2a4"></script>
+<script src="app.js?v=aecf7a45"></script>
+<script src="scorecard.js?v=aecf7a45"></script>
 
 </body>
 </html>

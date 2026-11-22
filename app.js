@@ -507,7 +507,7 @@ function renderRoundPage() {
 }
 
 function updateCalc() {
-  const n     = state.roundPlayers.length;
+  const n     = playingRps().length || state.roundPlayers.length;
   const buyin = parseFloat(document.getElementById('round-buyin')?.value) || 0;
   const total     = n * buyin;
   const mainPool  = n * (buyin - 2);   // after $2/player CTH
@@ -1477,7 +1477,7 @@ async function renderScoresPage() {
   mainCard.style.display = '';
 
   const r = state.currentRound;
-  if (subtitle) subtitle.textContent = `${r.date} · ${r.course} · ${state.roundPlayers.length} players`;
+  if (subtitle) subtitle.textContent = `${r.date} · ${r.course} · ${playingRps().length || state.roundPlayers.length} players`;
 
   // Show commish-only elements
   if (state.isCommish) {
@@ -1560,6 +1560,12 @@ function updateTeamScore(team, val) {
   }
 }
 
+// Who actually played: checked-in players who were put on a team. Anyone checked in
+// but left off every team (a no-show) doesn't pay in and doesn't count toward the pot.
+function playingRps() {
+  return state.roundPlayers.filter(rp => rp.team);
+}
+
 function getTeamGroupsByRpId() {
   const teams = {};
   state.roundPlayers.forEach(rp => {
@@ -1592,7 +1598,8 @@ function renderSkinsSection() {
   const skinsCard = document.getElementById('skins-card');
   if (!skinsCard || !state.isCommish) return;
 
-  const allRps = state.roundPlayers.filter(rp => rp.team);
+  const allRps = playingRps()
+    .sort((a, b) => (a.players?.name || '').localeCompare(b.players?.name || ''));
 
   // Hole winner dropdowns
   document.getElementById('skins-holes').innerHTML = Array.from({ length: 9 }, (_, i) => {
@@ -1614,10 +1621,6 @@ function renderSkinsSection() {
   }).join('');
 
   // CTH — two dropdowns, one per par-3 hole
-  const cthOptions = `
-    <option value="">— No winner</option>
-    ${allRps.map(rp => `<option value="${rp.id}">${rp.players.name} (${rp.team})</option>`).join('')}
-  `;
   document.getElementById('cth-players').innerHTML = `
     <div class="skins-row">
       <span class="hole-label">Hole 2</span>
@@ -1693,7 +1696,7 @@ function calcPayoutData() {
     }
   }
 
-  const n        = state.roundPlayers.length;
+  const n        = playingRps().length;
   const buyin    = parseFloat(r.buyin_per_player) || 12;
   const totalPot = n * buyin;
   const cthPool  = n * 2;                // $1/hole × 2 CTH holes
@@ -1894,8 +1897,16 @@ async function finalizeRound() {
     return;
   }
 
+  // Checked in but never put on a team = didn't play. Drop those rows so they
+  // don't show up in history, the results post, or anyone's rounds played.
+  const noShows = state.roundPlayers.filter(rp => !rp.team);
+  if (noShows.length) {
+    await db.from('round_players').delete().in('id', noShows.map(rp => rp.id));
+  }
+  const played = playingRps();
+
   // Update round_players with scores, skins, CTH, paid status
-  for (const rp of state.roundPlayers) {
+  for (const rp of played) {
     const skinsCount = Object.values(state.holeWinners).filter(id => id === rp.id).length;
     const cthCount   = (state.cthWinners.hole2 === rp.id ? 1 : 0)
                      + (state.cthWinners.hole5 === rp.id ? 1 : 0);
@@ -1910,7 +1921,7 @@ async function finalizeRound() {
   }
 
   // Upsert round_results
-  const results = state.roundPlayers.map(rp => {
+  const results = played.map(rp => {
     const isWin  = d.winningTeams.includes(rp.team);
     const teamW  = isWin ? d.perWin : 0;
     const skinW  = (d.skinsPerRp[rp.id] || 0) * d.skinValue;
@@ -3230,7 +3241,7 @@ async function loadHistoryRoundData(roundId, container) {
   const round = state.historyRounds.find(r => r.id === roundId);
 
   const [{ data: rps }, { data: results }] = await Promise.all([
-    db.from('round_players').select('*, players(name)').eq('round_id', roundId),
+    db.from('round_players').select('*, players(name)').eq('round_id', roundId).not('team', 'is', null),
     db.from('round_results').select('*, players(name)').eq('round_id', roundId).order('total_winnings', { ascending: false }),
   ]);
 
