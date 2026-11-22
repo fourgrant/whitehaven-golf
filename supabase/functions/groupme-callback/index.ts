@@ -31,7 +31,7 @@
 
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 import {
-  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, fmtDate, msgRsvpList, commishLine, Round,
+  adminClient, getOpenRound, getRsvps, postToGroup, rsvpsClosed, quietHours, fmtDate, msgRsvpList, Round,
   inList, waitList, promoteFromWaitlist, postPromoted, tagged,
 } from "../_shared/groupme.ts";
 import { parseRsvp, findPlayer, isSender, Parsed } from "../_shared/rsvp-parse.ts";
@@ -78,7 +78,7 @@ async function handle(db: SupabaseClient, msg: { name: string; user_id: string }
   }
 
   if (cmd.kind === "who") {
-    await postToGroup(msgRsvpList(round, await getRsvps(db, round.id)) + `\n\n` + commishLine(round));
+    await postToGroup(msgRsvpList(round, await getRsvps(db, round.id)));
     return;
   }
 

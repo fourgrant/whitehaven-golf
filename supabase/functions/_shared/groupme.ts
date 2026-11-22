@@ -236,7 +236,7 @@ export function msgRsvpOpen(round: Round): string {
   ].join("\n");
 }
 
-// "🧢 Commish: Benton · Venmo @bentonpratt4" — added to the "who's in" reply.
+// "🧢 Commish: Benton · Venmo @bentonpratt4" — ends every RSVP list ("who's in", the 9 PM list).
 export function commishLine(round: Round): string {
   const c = round.lead_commish;
   if (!c?.name) return `🧢 Commish: TBD`;
@@ -270,7 +270,7 @@ function isFull(round: Round, rsvps: Rsvp[]): boolean {
 export function msgRsvpList(round: Round, rsvps: Rsvp[]): string {
   const ins = inListAZ(rsvps);
   if (!ins.length) {
-    return `Nobody's in yet for ${fmtDate(round.date)}. Reply "in" to be the first.`;
+    return `Nobody's in yet for ${fmtDate(round.date)}. Reply "in" to be the first.\n\n` + commishLine(round);
   }
   return [
     `📋 In for ${fmtDate(round.date)} (${capLabel(round, ins.length)}):`,
@@ -278,6 +278,8 @@ export function msgRsvpList(round: Round, rsvps: Rsvp[]): string {
     ...waitlistLines(rsvps),
     ``,
     isFull(round, rsvps) ? `🔒 We're full. Reply "in" to join the waitlist.` : `Reply "in" to join.`,
+    ``,
+    commishLine(round),
   ].join("\n");
 }
 
