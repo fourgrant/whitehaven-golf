@@ -236,6 +236,14 @@ export function msgRsvpOpen(round: Round): string {
   ].join("\n");
 }
 
+// "🧢 Commish: Benton · Venmo @bentonpratt4" — added to the "who's in" reply.
+export function commishLine(round: Round): string {
+  const c = round.lead_commish;
+  if (!c?.name) return `🧢 Commish: TBD`;
+  const v = venmoHandle(c.venmo);
+  return `🧢 Commish: ${c.name}` + (v ? ` · Venmo @${v}` : ``);
+}
+
 // Posted when the commish for an upcoming round is set or changes mid-week.
 export function msgCommish(round: Round): string | null {
   const pay = payLine(round);
